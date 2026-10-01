@@ -114,7 +114,6 @@ export default function LastFloorGame() {
       dailyDate: dead.daily ? today() : save.stats.dailyDate,
     };
     persist({ ...save, coins: save.coins + coinBank, shards: save.shards + shardBank, keys: save.keys + keyBank, stats: nextStats, activeRun: null });
-    setRun(null);
   }, [persist, save]);
 
   const loseLife = useCallback((reason = "DAMAGE") => {
