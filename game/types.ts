@@ -1,4 +1,4 @@
-export type Tone = "safe" | "danger" | "neutral" | "weird";
+export type Tone = "safe" | "danger" | "neutral" | "weird" | "risky";
 
 export type ScheduledConsequence = {
   id: string;
@@ -53,7 +53,7 @@ export type ChoiceEffect = {
   money?: number;
   addPassenger?: Passenger;
   removePassengerId?: string;
-  schedule?: Omit<ScheduledConsequence, "id" | "sourceRound" | "sourceTitle"> & { delay: number };
+  schedule?: Omit<ScheduledConsequence, "id" | "sourceRound" | "sourceTitle" | "dueRound"> & { delay: number };
   flag?: string;
   switchTrain?: boolean;
 };
