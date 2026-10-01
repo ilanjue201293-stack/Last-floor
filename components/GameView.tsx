@@ -278,9 +278,10 @@ export default function GameView(props: Props) {
     </header>
     <main className="game-main">
       <div className="arena-shell">
-        <div className={scan ? "arena-frame scan-active" : "arena-frame"}>
+        <div className={(scan ? "arena-frame scan-active" : "arena-frame") + " zone-" + floor.zone.id + " variant-" + floor.variant}>
           <div className="arena-grid" /><div className="arena-scanline" />
-          <div className="room-label">{floor.zone.name}<span>// SECTOR {String(floor.floor).padStart(3,"0")}</span></div>
+          <div className="room-decor" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></div>
+          <div className="room-label"><b>{floor.variantName}</b>{floor.zone.name}<span>// SECTOR {String(floor.floor).padStart(3,"0")}</span></div>
           {floor.type === "COMBAT" && <><div className="combat-ring" />{enemies.map((enemy)=><div key={enemy.id} className={"enemy "+enemy.kind} style={{left:enemy.x+"%",top:enemy.y+"%"}}><span /></div>)}</>}
           {floor.type === "ESCAPE" && <><div className="laser laser-a" /><div className="laser laser-b" /><div className="laser laser-c" /><div className="escape-exit"><span>EXIT</span><b>↗</b></div></>}
           {floor.type === "CHALLENGE" && targets.map((target,index)=><button className="target" key={index} style={{left:target.x+"%",top:target.y+"%"}} onClick={()=>{setPlayer(target);playerRef.current=target;action();}}><span>{String(index+1).padStart(2,"0")}</span></button>)}
