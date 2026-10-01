@@ -1,5 +1,5 @@
-import LastFloorGame from "@/components/LastFloorGame";
+import TrainGame from "@/components/TrainGame";
 
-export default function HomePage() {
-  return <LastFloorGame />;
+export default function Home() {
+  return <TrainGame />;
 }

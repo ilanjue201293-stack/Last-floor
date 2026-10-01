@@ -1,110 +1,77 @@
-export type RoomType = "PUZZLE" | "COMBAT" | "ESCAPE" | "CHALLENGE" | "MEMORY" | "UNKNOWN";
-export type AbilityId = "DASH" | "SHIELD" | "TIME" | "PULSE" | "SCAN";
-export type CosmeticId = "ROOKIE" | "SHADOW" | "NEON" | "GLITCH" | "GOLDEN" | "VOID";
+export type Tone = "safe" | "danger" | "neutral" | "weird";
 
-export type Zone = {
+export type ScheduledConsequence = {
   id: string;
-  name: string;
-  range: [number, number];
-  tagline: string;
+  dueRound: number;
+  sourceRound: number;
+  sourceTitle: string;
+  text: string;
+  health?: number;
+  supplies?: number;
+  stress?: number;
+  money?: number;
+  fatal?: boolean;
 };
 
-export type Modifier = {
+export type Passenger = {
   id: string;
   name: string;
-  description: string;
-  effect: string;
-  scoreMultiplier: number;
-  rewardMultiplier: number;
-  speedMultiplier: number;
-  enemyMultiplier: number;
+  age: number;
+  note: string;
+  trust: number;
+  accent: "red" | "blue" | "amber" | "violet";
 };
 
-export type FloorConfig = {
-  floor: number;
-  zone: Zone;
-  type: RoomType;
+export type GameState = {
+  round: number;
+  totalRounds: number;
+  station: string;
+  district: string;
+  clock: string;
+  weather: string;
+  trainLine: string;
+  trainNo: number;
+  health: number;
+  supplies: number;
+  stress: number;
+  money: number;
+  passengers: Passenger[];
+  pending: ScheduledConsequence[];
+  history: string[];
+  flags: string[];
+  score: number;
+  trainChanges: number;
+  decisions: number;
+  bestRound: number;
+  status: "playing" | "dead" | "won";
+};
+
+export type ChoiceEffect = {
+  health?: number;
+  supplies?: number;
+  stress?: number;
+  money?: number;
+  addPassenger?: Passenger;
+  removePassengerId?: string;
+  schedule?: Omit<ScheduledConsequence, "id" | "sourceRound" | "sourceTitle"> & { delay: number };
+  flag?: string;
+  switchTrain?: boolean;
+};
+
+export type Choice = {
+  id: string;
+  label: string;
+  text: string;
+  tone: Tone;
+  effect: ChoiceEffect;
+};
+
+export type GameEvent = {
+  id: string;
+  tag: string;
   title: string;
-  objective: string;
-  difficulty: number;
-  timeLimit: number;
-  reward: { coins: number; shards: number; keys: number };
-  seed: number;
-  isBoss: boolean;
-  bossName?: string;
-  variant: number;
-  variantName: string;
-};
-
-export type UpgradeId = "HEALTH" | "SPEED" | "SHIELD" | "LUCK" | "ENERGY";
-
-export type UpgradeState = Record<UpgradeId, number>;
-
-export type ProfileStats = {
-  totalRuns: number;
-  totalFloors: number;
-  bestFloor: number;
-  bestScore: number;
-  previousScore: number;
-  coinsEarned: number;
-  puzzlesSolved: number;
-  enemiesDefeated: number;
-  deaths: number;
-  perfectFloors: number;
-  fastestFloor: number;
-  bestCombo: number;
-  bossWins: number;
-  dailyBestFloor: number;
-  dailyBestScore: number;
-  dailyDate: string;
-};
-
-export type SaveData = {
-  version: 1;
-  coins: number;
-  shards: number;
-  keys: number;
-  upgrades: UpgradeState;
-  ownedCosmetics: CosmeticId[];
-  selectedCosmetic: CosmeticId;
-  achievements: string[];
-  stats: ProfileStats;
-  settings: {
-    sound: boolean;
-    volume: number;
-    reducedMotion: boolean;
-  };
-  activeRun: RunSnapshot | null;
-};
-
-export type RunSnapshot = {
-  seed: number;
-  daily: boolean;
-  floor: number;
-  checkpoint: number;
-  lives: number;
-  score: number;
-  runCoins: number;
-  runShards: number;
-  runKeys: number;
-  combo: number;
-  bestCombo: number;
-  damageTaken: number;
-  perfectStreak: number;
-  floorsCleared: number;
-  modifier: Modifier | null;
-  checkpointUsed: boolean;
-  startedAt: number;
-};
-
-export type RunResult = {
-  score: number;
-  floor: number;
-  floorsCleared: number;
-  runCoins: number;
-  runShards: number;
-  runKeys: number;
-  damageTaken: number;
-  bestCombo: number;
-  daily: boolean;
+  body: string;
+  location: string;
+  urgency?: "low" | "medium" | "high";
+  choices: Choice[];
 };
