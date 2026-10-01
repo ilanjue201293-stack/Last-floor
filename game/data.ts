@@ -23,6 +23,7 @@ export const ROOM_INFO = {
   ESCAPE: { label: "ESCAPE", icon: "↗", colorClass: "room-escape" },
   CHALLENGE: { label: "CHALLENGE", icon: "◎", colorClass: "room-challenge" },
   MEMORY: { label: "MEMORY", icon: "◈", colorClass: "room-memory" },
+  UNKNOWN: { label: "UNKNOWN", icon: "?", colorClass: "room-unknown" },
 } as const;
 
 export const ABILITIES: Record<AbilityId, {
