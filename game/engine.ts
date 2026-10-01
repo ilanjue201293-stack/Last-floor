@@ -477,7 +477,7 @@ export function makeEvent(state: GameState): GameEvent {
           "risky",
           "Tu ouvres la valise. Elle contient des documents et une grosse enveloppe d'argent. Tu refermes aussitôt, mais quelqu'un va probablement venir la chercher.",
           "warn",
-          { money: 70, addFlag: "bag-open", score: 100 }
+          { money: 70, addFlag: "bag-open" }
         ),
         choice(
           "driver",
