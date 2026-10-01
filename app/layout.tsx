@@ -4,6 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "LAST FLOOR — The tower is waiting",
   description: "A dark sci-fi arcade roguelite about climbing a mysterious 100-floor tower.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "LAST FLOOR", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
