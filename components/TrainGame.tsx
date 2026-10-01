@@ -203,7 +203,7 @@ function Lobby({
             <div className="last-result">
               <span>DERNIER TRAJET</span>
               <strong>{lastResult.status === "won" ? "ARRIVÉ À MAISON" : "TRAJET INTERROMPU"}</strong>
-              <small>{lastResult.bestRound} arrêts · {Math.round(lastResult.score)} pts · {lastResult.trainChanges} correspondance(s)</small>
+              <small>{Math.min(lastResult.round, lastResult.maxRounds)} arrêts · {Math.round(lastResult.score)} pts · {lastResult.trainChanges} correspondance(s)</small>
             </div>
           )}
         </section>
