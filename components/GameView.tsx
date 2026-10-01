@@ -8,7 +8,7 @@ import type { AbilityId, FloorConfig, RoomType } from "@/game/types";
 import MobileControls from "./MobileControls";
 
 type Point = { x: number; y: number };
-type Enemy = Point & { id: number; kind: "hunter" | "tank" | "turret" };
+type Enemy = Point & { id: number; kind: "hunter" | "tank" | "turret" | "boss" };
 
 type Props = {
   floor: FloorConfig;
@@ -113,9 +113,9 @@ export default function GameView(props: Props) {
     setMemoryIndex(0);
     setMemoryVisible(floor.type === "MEMORY");
     setTargets(floor.type === "CHALLENGE" ? Array.from({ length: 6 }, () => ({ x: 12 + random() * 76, y: 12 + random() * 74 })) : []);
-    setEnemies(floor.type === "COMBAT" ? Array.from({ length: floor.isBoss ? 5 : Math.min(8, 2 + floor.difficulty) }, (_, id) => ({
-      id, x: 14 + random() * 72, y: 16 + random() * 56, kind: id % 4 === 0 ? "tank" : id % 3 === 0 ? "turret" : "hunter",
-    })) : []);
+    setEnemies(floor.type === "COMBAT" ? (floor.isBoss ? [{ id: 0, x: 50, y: 30, kind: "boss" as const }] : Array.from({ length: Math.min(8, 2 + floor.difficulty) }, (_, id) => ({
+      id, x: 14 + random() * 72, y: 16 + random() * 56, kind: id % 4 === 0 ? "tank" as const : id % 3 === 0 ? "turret" as const : "hunter" as const,
+    }))) : []);
   }, [abilityIds, floor, shieldLevel]);
 
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function GameView(props: Props) {
             const dx = currentPlayer.x - enemy.x;
             const dy = currentPlayer.y - enemy.y;
             const len = Math.max(1, Math.hypot(dx, dy));
-            const enemySpeed = enemy.kind === "tank" ? 2.4 : 4.8;
+            const enemySpeed = enemy.kind === "boss" ? 1.7 : enemy.kind === "tank" ? 2.4 : 4.8;
             return { ...enemy, x: clamp(enemy.x + dx / len * enemySpeed * dt, 7, 93), y: clamp(enemy.y + dy / len * enemySpeed * dt, 10, 88) };
           }));
           if (enemies.some((enemy) => dist(enemy, currentPlayer) < 5.5)) hit("CONTACT");
@@ -230,7 +230,6 @@ export default function GameView(props: Props) {
       if (floor.isBoss) {
         const next = bossHp - 1;
         setBossHp(next);
-        setEnemies((current) => current.filter((enemy) => enemy.id !== target.id));
         if (next <= 0) finish({ boss: true, enemies: 8, perfect: lives === maxLives });
         else if ([9,6,3].includes(next)) flash("PHASE SHIFT");
       } else {
