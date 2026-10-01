@@ -68,6 +68,7 @@ export default function GameView(props: Props) {
   const [memoryVisible, setMemoryVisible] = useState(false);
   const [memoryIndex, setMemoryIndex] = useState(0);
   const [puzzleIndex, setPuzzleIndex] = useState(0);
+  const [puzzleSequence, setPuzzleSequence] = useState<number[]>([0, 1, 2, 3]);
   const [bossHp, setBossHp] = useState(floor.isBoss ? 12 : 0);
   const [mysteryChoice, setMysteryChoice] = useState<number | null>(null);
 
@@ -111,6 +112,9 @@ export default function GameView(props: Props) {
     setCooldowns(Object.fromEntries(abilityIds.map((id) => [id, 0])) as Record<AbilityId, number>);
     setHits(0);
     setPuzzleIndex(0);
+    const puzzleRandom = mulberry32(floor.seed ^ 0x51a7);
+    const puzzleLength = 4 + (floor.variant % 3);
+    setPuzzleSequence(Array.from({ length: puzzleLength }, () => Math.floor(puzzleRandom() * 4)));
     setBossHp(floor.isBoss ? 12 : 0);
     setMysteryChoice(null);
     setMemory(makeSequence(floor.seed, Math.min(8, 3 + Math.floor(floor.difficulty / 2))));
@@ -285,7 +289,7 @@ export default function GameView(props: Props) {
           {floor.type === "COMBAT" && <><div className="combat-ring" />{enemies.map((enemy)=><div key={enemy.id} className={"enemy "+enemy.kind} style={{left:enemy.x+"%",top:enemy.y+"%"}}><span /></div>)}</>}
           {floor.type === "ESCAPE" && <><div className="laser laser-a" /><div className="laser laser-b" /><div className="laser laser-c" /><div className="escape-exit"><span>EXIT</span><b>↗</b></div></>}
           {floor.type === "CHALLENGE" && targets.map((target,index)=><button className="target" key={index} style={{left:target.x+"%",top:target.y+"%"}} onClick={()=>{setPlayer(target);playerRef.current=target;action();}}><span>{String(index+1).padStart(2,"0")}</span></button>)}
-          {floor.type === "PUZZLE" && <div className="puzzle-console"><div className="puzzle-screen"><span>SIGNAL LOCK</span><strong>{puzzleIndex}/4</strong><small>PRESS IN SEQUENCE</small></div><div className="puzzle-buttons">{[0,1,2,3].map((value)=><button key={value} className={puzzleIndex>value?"pressed":""} onClick={()=>{if(value!==puzzleIndex){flash("WRONG CIRCUIT");onLoseLife("PUZZLE");setPuzzleIndex(0);return;}const next=value+1;setPuzzleIndex(next);if(next===4)finish({perfect:lives===maxLives,puzzle:true});}}>{["Ⅰ","Ⅱ","Ⅲ","Ⅳ"][value]}</button>)}</div></div>}
+          {floor.type === "PUZZLE" && <div className="puzzle-console"><div className="puzzle-screen"><span>SIGNAL LOCK</span><strong>{puzzleIndex}/{puzzleSequence.length}</strong><small>PRESS IN SEQUENCE</small></div><div className="puzzle-buttons">{[0,1,2,3].map((value)=><button key={value} className={puzzleIndex>value?"pressed":""} onClick={()=>{if(value!==puzzleSequence[puzzleIndex]){flash("WRONG CIRCUIT");onLoseLife("PUZZLE");setPuzzleIndex(0);return;}const next=value+1;setPuzzleIndex(next);if(next>=puzzleSequence.length)finish({perfect:lives===maxLives,puzzle:true});}}>{["Ⅰ","Ⅱ","Ⅲ","Ⅳ"][value]}</button>)}</div></div>}
           {floor.type === "UNKNOWN" && <div className="unknown-console"><span className="unknown-question">?</span><strong>CHOOSE ONE</strong><small>The tower will remember.</small><div className="unknown-doors">{[0,1,2].map((door) => <button key={door} className={mysteryChoice === door ? "chosen" : ""} onClick={() => { const safe = floor.seed % 3; const bonus = Math.floor(floor.seed / 7) % 3; setMysteryChoice(door); if (door === safe || door === bonus) finish({ perfect: lives === maxLives }); else { flash("THE WRONG DOOR"); onLoseLife("TRAP"); window.setTimeout(() => setMysteryChoice(null), 420); } }}><span>DOOR {door + 1}</span><b>↗</b></button>)}</div></div>}
           {floor.type === "MEMORY" && <div className="memory-console"><div className={memoryVisible?"memory-sequence visible":"memory-sequence"}>{memory.map((symbol,index)=><span key={index}>{symbol}</span>)}</div><div className="memory-buttons">{["△","□","○","◇","✦","◈"].map((symbol)=><button key={symbol} disabled={memoryVisible} onClick={()=>{if(symbol!==memory[memoryIndex]){flash("SIGNAL LOST");onLoseLife("MEMORY");setMemoryIndex(0);return;}const next=memoryIndex+1;setMemoryIndex(next);if(next>=memory.length)finish({perfect:lives===maxLives,puzzle:true});}}>{symbol}</button>)}</div></div>}
           <div className={shield ? "player shielded" : "player"} style={{left:player.x+"%",top:player.y+"%"}}><i /><span /></div>
