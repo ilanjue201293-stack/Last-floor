@@ -3,7 +3,16 @@ import { hashSeed, mulberry32, seededPick } from "./rng";
 import type { FloorConfig, RoomType } from "./types";
 
 const EARLY_ROOMS: RoomType[] = ["PUZZLE", "MEMORY", "CHALLENGE", "ESCAPE", "COMBAT"];
-const LATE_ROOMS: RoomType[] = ["COMBAT", "ESCAPE", "CHALLENGE", "PUZZLE", "MEMORY", "COMBAT"];
+const LATE_ROOMS: RoomType[] = ["COMBAT", "ESCAPE", "CHALLENGE", "PUZZLE", "MEMORY", "COMBAT", "UNKNOWN"];
+const VARIANTS: Record<RoomType, string[]> = {
+  PUZZLE: ["SIGNAL VAULT", "LASER ARRAY", "SWITCH GRID", "COLOR CORE", "LOCKED TERMINAL", "SHIFTING PANELS"],
+  COMBAT: ["ARENA", "SECURITY DECK", "HUNTER PIT", "REACTOR BAY", "DRONE YARD", "CONTAINMENT"],
+  ESCAPE: ["LASER HALL", "COLLAPSING DECK", "REDLINE CORRIDOR", "VERTICAL SHAFT", "LOCKDOWN", "FALLING GRID"],
+  CHALLENGE: ["TARGET RANGE", "REACTION LAB", "MOVING GALLERY", "CLOCKWORK", "PRECISION DECK", "SWARM TEST"],
+  MEMORY: ["ECHO CHAMBER", "SIGNAL MIRROR", "SYNAPSE ROOM", "DARK ARRAY", "ARCHIVE", "RECALL TEST"],
+  UNKNOWN: ["SEALED ROOM", "FALSE FLOOR", "BLACK BOX", "UNMARKED", "NULL SPACE", "THE QUIET ROOM"],
+};
+
 
 export function generateFloor(floor: number, runSeed: number, daily = false): FloorConfig {
   const seed = hashSeed(`${runSeed}:${floor}:${daily ? "D" : "R"}`);
