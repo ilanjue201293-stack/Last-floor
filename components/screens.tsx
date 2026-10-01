@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import type { CSSProperties, Dispatch, SetStateAction } from "react";
 import { ABILITIES, ACHIEVEMENTS, COSMETICS, MODIFIERS, UPGRADES, ZONES, upgradeCost } from "@/game/data";
 import type { AbilityId, CosmeticId, Modifier, RunSnapshot, SaveData, UpgradeId } from "@/game/types";
 
@@ -144,7 +144,7 @@ export function ShopScreen({ save, onUpgrade, onCosmetic, onMenu }: { save: Save
     <div className="shop-section"><div className="section-label">COSMETICS</div><div className="cosmetic-grid">{(Object.keys(COSMETICS) as CosmeticId[]).map((id) => {
       const item = COSMETICS[id]; const owned = save.ownedCosmetics.includes(id); const locked = id === "VOID" && save.stats.bestFloor < 75;
       return <button key={id} className={save.selectedCosmetic === id ? "cosmetic-card selected" : "cosmetic-card"} onClick={() => onCosmetic(id)} disabled={locked}>
-        <div className="skin-preview" style={{ "--skin": item.accent } as React.CSSProperties}><span /></div><strong>{item.name}</strong><small>{locked ? "Reach Floor 75" : item.description}</small><b>{owned ? "EQUIP" : item.kind === "coins" ? "◉ " + item.cost : "◆ " + item.cost}</b>
+        <div className="skin-preview" style={{ "--skin": item.accent } as CSSProperties}><span /></div><strong>{item.name}</strong><small>{locked ? "Reach Floor 75" : item.description}</small><b>{owned ? "EQUIP" : item.kind === "coins" ? "◉ " + item.cost : "◆ " + item.cost}</b>
       </button>;
     })}</div></div><button className="text-button" onClick={onMenu}>← MENU</button>
   </main>;
