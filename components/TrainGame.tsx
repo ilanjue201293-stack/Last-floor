@@ -213,7 +213,7 @@ export default function TrainGame() {
                 {pending.map((item) => (
                   <div className="pending-item" key={item.id}>
                     <span>dans {item.dueRound - state.round} arrêt{item.dueRound - state.round > 1 ? "s" : ""}</span>
-                    <strong>{item.text}</strong>
+                    <strong>UNE CONSÉQUENCE EST EN APPROCHE</strong>
                   </div>
                 ))}
               </div>
