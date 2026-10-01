@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "NIGHT TRAIN — Rentrez chez vous",
-  description: "Un jeu de décisions dans un train où les conséquences arrivent parfois plusieurs tours plus tard.",
+  description: "Un jeu narratif de décisions et de conséquences retardées dans un train de nuit.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -17,7 +17,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#07090d"
+  themeColor: "#05070b"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

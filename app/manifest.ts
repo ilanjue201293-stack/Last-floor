@@ -4,11 +4,11 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "NIGHT TRAIN",
     short_name: "NIGHT TRAIN",
-    description: "Rentrez chez vous. Faites les bons choix. Parfois, ils prennent du temps à vous répondre.",
+    description: "Rentrez chez vous. Vos décisions peuvent vous rattraper plusieurs arrêts plus tard.",
     start_url: "/",
     display: "standalone",
-    background_color: "#07090d",
-    theme_color: "#07090d",
+    background_color: "#05070b",
+    theme_color: "#05070b",
     orientation: "portrait"
   };
 }

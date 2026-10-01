@@ -1,27 +1,28 @@
 # NIGHT TRAIN
 
-Un jeu de décisions en voyage de nuit.
+NIGHT TRAIN est un jeu narratif de survie dans un train de nuit.
 
-Tu ne conduis pas le train. Tu ne contrôles personne. Le train avance tout seul et, à chaque arrêt, le jeu te propose une situation.
+Tu ne contrôles pas le déplacement. Le train avance tout seul et, à chaque arrêt, une situation t'oblige à choisir.
 
-Le but est simple : atteindre le terminus **MAISON**.
+Le cœur du jeu est la séparation entre :
 
-Mais les conséquences ne sont pas toujours immédiates. Une décision prise aujourd'hui peut provoquer un problème deux ou trois arrêts plus tard. Et parfois, la bonne décision consiste à descendre d'une rame pour reprendre un autre train.
+1. l'action immédiate : ce que tu viens de décider se produit maintenant et modifie immédiatement la scène ;
+2. la narration : un texte progressif raconte ce qui vient réellement de se passer ;
+3. la conséquence retardée : une décision peut provoquer quelque chose plusieurs arrêts plus tard.
 
-## Boucle de jeu
+Le but est d'atteindre le terminus **MAISON**.
 
-- arriver à une station
-- lire la situation
-- choisir une action
-- gérer santé, réserves, stress, argent et passagers
-- continuer ou changer de train
-- découvrir les conséquences retardées
-- atteindre MAISON avant que le trajet ne te tue
+## Système de partie
 
-La partie est sauvegardée automatiquement dans le navigateur.
+Chaque session possède un code de partie, un nom de voyageur et un mode de trajet. La session est sauvegardée localement dans le navigateur. Le lobby permet de créer une nouvelle partie ou de reprendre le trajet en cours.
+
+Modes :
+- COURT : 12 arrêts
+- CLASSIQUE : 24 arrêts
+
+Le jeu est volontairement sans backend : il est prêt à être importé directement dans Vercel.
 
 ## Stack
 
-Next.js 16 + React 19 + TypeScript. Aucun backend et aucune dépendance de gameplay externe.
+Next.js 16 + React 19 + TypeScript, sans dépendance de gameplay externe.
 
-Le projet est pensé mobile-first et peut être importé directement dans Vercel.

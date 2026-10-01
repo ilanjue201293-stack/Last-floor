@@ -3,7 +3,7 @@ import type {
   GameEvent,
   GameState,
   Passenger,
-  ScheduledConsequence,
+  ScheduledConsequence
 } from "./types";
 
 const STATIONS = [
@@ -14,20 +14,19 @@ const STATIONS = [
   ["AURORA", "QUARTIER SUD"],
   ["LUMEN", "CENTRE-VILLE"],
   ["ORBITAL", "GRAND ÉCHANGEUR"],
-  ["BELLEVUE", "HAUTS"],
+  ["BELLEVUE", "LES HAUTS"],
   ["VERNIER", "VIEILLE VILLE"],
   ["CENDRE", "ZONE OUEST"],
   ["LUCIOLE", "QUARTIER LAC"],
-  ["HALO", "NŒUD CENTRAL"],
+  ["HALO", "NŒUD CENTRAL"]
 ] as const;
 
 const WEATHER = ["PLUIE FINE", "BROUILLARD", "VENT FROID", "NUIT CLAIRE", "ORAGE AU LOIN"];
-const LINES = ["N-04", "C-11", "METRO-X", "R-27"];
+const LINES = ["N-04", "C-11", "R-27", "M-X"];
 
 export const STARTING_PASSENGERS: Passenger[] = [
-  { id: "p1", name: "MILO", age: 29, note: "casque audio · regarde le sol", trust: 50, accent: "blue" },
-  { id: "p2", name: "NORA", age: 47, note: "sac rouge · observe les portes", trust: 50, accent: "red" },
-  { id: "p3", name: "ELI", age: 19, note: "uniforme de travail · très fatigué", trust: 50, accent: "violet" },
+  { id: "milo", name: "MILO", age: 29, note: "casque audio · évite les regards", accent: "blue" },
+  { id: "nora", name: "NORA", age: 47, note: "sac rouge · regarde souvent les portes", accent: "red" }
 ];
 
 function hash(value: string) {
@@ -39,9 +38,9 @@ function hash(value: string) {
   return h >>> 0;
 }
 
-export function random(seed: string) {
+function rng(seed: string) {
   let x = hash(seed) || 1;
-  return () => {
+  return function next() {
     x += 0x6d2b79f5;
     let t = x;
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -50,382 +49,697 @@ export function random(seed: string) {
   };
 }
 
-export function makeInitialState(seed = String(Date.now())): GameState {
-  const r = random(seed);
-  const station = STATIONS[Math.floor(r() * STATIONS.length)] ?? STATIONS[0];
+function locationFor(round: number, seed: string) {
+  const r = rng(seed + ":station:" + round);
+  const station = STATIONS[(round - 1) % STATIONS.length] ?? STATIONS[0];
   return {
-    round: 1,
-    totalRounds: 30,
     station: station[0],
     district: station[1],
-    clock: "22:41",
-    weather: WEATHER[Math.floor(r() * WEATHER.length)] ?? WEATHER[0],
+    platform: String(1 + Math.floor(r() * 6)).padStart(2, "0"),
+    clock: String((22 + Math.floor((round * 9) / 60)) % 24).padStart(2, "0") + ":" + String((14 + round * 9) % 60).padStart(2, "0"),
+    weather: WEATHER[Math.floor(r() * WEATHER.length)] ?? WEATHER[0]
+  };
+}
+
+function newPassenger(seed: string, index: number, role?: Passenger["hiddenRole"]): Passenger {
+  const r = rng(seed + ":passenger:" + index);
+  const names = ["ADAM", "INES", "SACHA", "MAYA", "NOAM", "JADE", "TOM", "YUNA"];
+  const notes = ["valise rigide", "regarde sa montre", "tient un sac en toile", "semble perdu", "ne quitte pas son téléphone", "a l'air épuisé"];
+  return {
+    id: "p-" + seed + "-" + index,
+    name: names[Math.floor(r() * names.length)] ?? "SAM",
+    age: 18 + Math.floor(r() * 52),
+    note: notes[Math.floor(r() * notes.length)] ?? notes[0],
+    accent: (["blue", "red", "amber", "violet", "green"][index % 5] ?? "blue") as Passenger["accent"],
+    hiddenRole: role
+  };
+}
+
+export function makeInitialState(
+  seed: string,
+  playerName: string,
+  mode: "SHORT" | "CLASSIC",
+  sessionCode: string
+): GameState {
+  const r = rng(seed);
+  const loc = locationFor(1, seed);
+  return {
+    playerName,
+    sessionCode,
+    mode,
+    seed,
+    round: 1,
+    maxRounds: mode === "SHORT" ? 12 : 24,
+    station: loc.station,
+    district: loc.district,
+    platform: loc.platform,
+    clock: loc.clock,
+    weather: loc.weather,
     trainLine: LINES[Math.floor(r() * LINES.length)] ?? LINES[0],
-    trainNo: 1 + Math.floor(r() * 900),
+    trainNumber: 100 + Math.floor(r() * 799),
     health: 100,
-    supplies: 74,
-    stress: 18,
-    money: 35,
+    supplies: 78,
+    stress: 16,
+    money: 42,
     passengers: STARTING_PASSENGERS,
     pending: [],
-    history: ["Tu montes dans le train. Ton terminus est MAISON."],
+    history: ["Départ. Objectif : atteindre MAISON."],
     flags: [],
+    seenEvents: [],
     score: 0,
     trainChanges: 0,
     decisions: 0,
-    bestRound: 1,
-    status: "playing",
+    status: "playing"
   };
 }
 
-function person(seed: string, index: number): Passenger {
-  const r = random(seed);
-  const names = ["INES", "SACHA", "TOM", "YUNA", "LÉO", "MAYA", "NOAM", "JADE"];
-  const notes = ["porte une valise", "ne parle à personne", "a l'air pressé", "tient un bouquet", "regarde sa montre", "semble perdu"];
-  return {
-    id: `new-${seed}-${index}`,
-    name: names[Math.floor(r() * names.length)] ?? "SAM",
-    age: 18 + Math.floor(r() * 50),
-    note: notes[Math.floor(r() * notes.length)] ?? notes[0],
-    trust: 50,
-    accent: ["red", "blue", "amber", "violet"][index % 4] as Passenger["accent"],
-  };
-}
-
-function locationForRound(round: number, seed: string) {
-  const r = random(seed + ":loc");
-  const station = STATIONS[(round - 1) % STATIONS.length] ?? STATIONS[0];
-  const weather = WEATHER[Math.floor(r() * WEATHER.length)] ?? WEATHER[0];
-  const minutes = (41 + round * 7) % 60;
-  const hour = 22 + Math.floor((round * 7) / 60);
-  return {
-    station: station[0],
-    district: station[1],
-    weather,
-    clock: `${String(hour % 24).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
-  };
-}
-
-function addSchedule(
+function schedule(
   state: GameState,
-  sourceTitle: string,
-  schedule: NonNullable<Choice["effect"]["schedule"]>,
-) {
-  const entry: ScheduledConsequence = {
-    id: `${state.round}-${sourceTitle}-${state.pending.length}`,
-    dueRound: state.round + schedule.delay,
+  event: GameEvent,
+  effect: NonNullable<Choice["effect"]["schedule"]>
+): ScheduledConsequence {
+  return {
+    id: state.round + ":" + event.id + ":" + effect.chainId,
+    dueRound: state.round + effect.delay,
+    chainId: effect.chainId,
     sourceRound: state.round,
-    sourceTitle,
-    text: schedule.text,
-    health: schedule.health,
-    supplies: schedule.supplies,
-    stress: schedule.stress,
-    money: schedule.money,
-    fatal: schedule.fatal,
+    sourceTitle: event.title,
+    text: effect.text,
+    health: effect.health,
+    supplies: effect.supplies,
+    stress: effect.stress,
+    money: effect.money,
+    fatal: effect.fatal,
+    addPassenger: effect.addPassenger,
+    removePassengerId: effect.removePassengerId,
+    addFlag: effect.addFlag,
+    condition: effect.condition
   };
-  return [...state.pending, entry];
 }
 
-export function applyChoice(state: GameState, event: GameEvent, choice: Choice): GameState {
-  let next = { ...state, pending: [...state.pending], passengers: [...state.passengers], flags: [...state.flags], history: [...state.history] };
+function copyState(state: GameState): GameState {
+  return {
+    ...state,
+    passengers: state.passengers.map(function clonePassenger(p) { return { ...p }; }),
+    pending: state.pending.map(function clonePending(p) { return { ...p, condition: p.condition ? { ...p.condition } : undefined }; }),
+    history: state.history.slice(),
+    flags: state.flags.slice(),
+    seenEvents: state.seenEvents.slice()
+  };
+}
+
+export function applyChoice(state: GameState, event: GameEvent, choice: Choice): { state: GameState; immediateText: string } {
+  const next = copyState(state);
   const effect = choice.effect;
+
   next.health += effect.health ?? 0;
   next.supplies += effect.supplies ?? 0;
   next.stress += effect.stress ?? 0;
   next.money += effect.money ?? 0;
-  next.score += 75 + Math.max(0, next.health - state.health) * 2;
+  next.score += 80 + Math.max(0, effect.money ?? 0) * 2;
   next.decisions += 1;
-  next.history.unshift(`${event.title} → ${choice.label}`);
+  if (!next.seenEvents.includes(event.id)) next.seenEvents.push(event.id);
+
   if (effect.addPassenger) next.passengers.push(effect.addPassenger);
-  if (effect.removePassengerId) next.passengers = next.passengers.filter((p) => p.id !== effect.removePassengerId);
-  if (effect.flag && !next.flags.includes(effect.flag)) next.flags.push(effect.flag);
-  if (effect.schedule) next.pending = addSchedule(next, event.title, effect.schedule);
+  if (effect.removePassengerId) {
+    next.passengers = next.passengers.filter(function keepPassenger(p) {
+      return p.id !== effect.removePassengerId;
+    });
+  }
+
+  if (effect.addFlag && !next.flags.includes(effect.addFlag)) next.flags.push(effect.addFlag);
+  if (effect.removeFlag) next.flags = next.flags.filter(function keepFlag(flag) { return flag !== effect.removeFlag; });
+
+  if (effect.schedule) {
+    next.pending.push(schedule(next, event, effect.schedule));
+  }
+
   if (effect.switchTrain) {
-    next.trainNo += 1;
+    const currentIndex = Math.max(0, LINES.indexOf(next.trainLine));
+    next.trainLine = LINES[(currentIndex + 1) % LINES.length] ?? LINES[0];
+    next.trainNumber = 100 + hash(next.seed + ":train:" + next.round + ":" + next.trainChanges) % 799;
     next.trainChanges += 1;
-    next.trainLine = LINES[(LINES.indexOf(next.trainLine) + 1) % LINES.length] ?? LINES[0];
-    next.stress = Math.max(0, next.stress - 8);
-    next.history.unshift("Tu changes de train. Nouvelle rame, même destination.");
-  }
-  return next;
-}
-
-export function advanceRound(state: GameState): { state: GameState; death?: ScheduledConsequence; resolved: ScheduledConsequence[] } {
-  const nextRound = state.round + 1;
-  let next = { ...state, round: nextRound, pending: [...state.pending], history: [...state.history], bestRound: Math.max(state.bestRound, nextRound) };
-  const resolved = next.pending.filter((item) => item.dueRound <= nextRound);
-  next.pending = next.pending.filter((item) => item.dueRound > nextRound);
-
-  for (const item of resolved) {
-    next.health += item.health ?? 0;
-    next.supplies += item.supplies ?? 0;
-    next.stress += item.stress ?? 0;
-    next.money += item.money ?? 0;
-    next.history.unshift(item.text);
-  }
-
-  if (next.supplies <= 0) {
-    next.health -= 12;
-    next.history.unshift("Tes réserves sont vides. Tu t'affaiblis.");
-  }
-  if (next.stress >= 100) {
-    next.health -= 10;
-    next.stress = 84;
-    next.history.unshift("Le stress devient physique. Tu vacilles.");
+    next.stress = Math.max(0, next.stress - 7);
+    next.history.unshift("Tu quittes la rame et montes dans un autre train.");
   }
 
   next.health = Math.max(0, Math.min(100, next.health));
   next.supplies = Math.max(0, Math.min(100, next.supplies));
   next.stress = Math.max(0, Math.min(100, next.stress));
-  next.score += Math.max(10, next.health) + Math.max(5, next.supplies);
 
-  const location = locationForRound(nextRound, `round-${nextRound}`);
-  next.station = location.station;
-  next.district = location.district;
-  next.weather = location.weather;
-  next.clock = location.clock;
+  next.history.unshift(event.title + " → " + choice.label);
+  return { state: next, immediateText: choice.immediateText };
+}
 
-  const death = resolved.find((item) => item.fatal) ?? (next.health <= 0 ? resolved[resolved.length - 1] : undefined);
-  if (next.health <= 0 || death) {
-    next.status = "dead";
-    return { state: next, death, resolved };
+function consequenceBlocked(state: GameState, item: ScheduledConsequence) {
+  const condition = item.condition;
+  if (!condition) return false;
+  if (condition.blockedFlag && state.flags.includes(condition.blockedFlag)) return true;
+  if (condition.requiredFlag && !state.flags.includes(condition.requiredFlag)) return true;
+  if (condition.passengerId && !state.passengers.some(function find(p) { return p.id === condition.passengerId; })) return true;
+  return false;
+}
+
+function applyConsequence(state: GameState, item: ScheduledConsequence) {
+  if (consequenceBlocked(state, item)) return { state, applied: false };
+
+  state.health += item.health ?? 0;
+  state.supplies += item.supplies ?? 0;
+  state.stress += item.stress ?? 0;
+  state.money += item.money ?? 0;
+  if (item.addPassenger) state.passengers.push(item.addPassenger);
+  if (item.removePassengerId) {
+    state.passengers = state.passengers.filter(function keep(p) { return p.id !== item.removePassengerId; });
+  }
+  if (item.addFlag && !state.flags.includes(item.addFlag)) state.flags.push(item.addFlag);
+  state.history.unshift(item.text);
+  return { state, applied: true };
+}
+
+export function advanceAfterNarration(state: GameState): { state: GameState; resolved: ScheduledConsequence[] } {
+  const next = copyState(state);
+  const nextRound = state.round + 1;
+  next.round = nextRound;
+
+  if (nextRound > next.maxRounds) {
+    next.status = "won";
+    next.station = "MAISON";
+    next.district = "CHEZ TOI";
+    next.platform = "00";
+    next.clock = "00:00";
+    next.weather = "NUIT CALME";
+    next.score += 700;
+    return { state: next, resolved: [] };
   }
 
-  if (nextRound >= next.totalRounds) {
-    next.status = "won";
+  const loc = locationFor(nextRound, next.seed);
+  next.station = loc.station;
+  next.district = loc.district;
+  next.platform = loc.platform;
+  next.clock = loc.clock;
+  next.weather = loc.weather;
+  next.score += Math.max(15, next.health) + Math.max(8, next.supplies);
+
+  const due = next.pending.filter(function dueNow(item) { return item.dueRound <= nextRound; });
+  next.pending = next.pending.filter(function keep(item) { return item.dueRound > nextRound; });
+
+  const resolved: ScheduledConsequence[] = [];
+  for (const item of due) {
+    const result = applyConsequence(next, item);
+    if (result.applied) resolved.push(item);
+  }
+
+  next.health = Math.max(0, Math.min(100, next.health));
+  next.supplies = Math.max(0, Math.min(100, next.supplies));
+  next.stress = Math.max(0, Math.min(100, next.stress));
+
+  if (next.supplies <= 0) {
+    next.health = Math.max(0, next.health - 10);
+    next.stress = Math.min(100, next.stress + 8);
+  }
+  if (next.stress >= 100) {
+    next.health = Math.max(0, next.health - 12);
+    next.stress = 82;
+  }
+
+  if (resolved.some(function fatal(item) { return item.fatal; }) || next.health <= 0) {
+    next.status = "dead";
   }
 
   return { state: next, resolved };
 }
 
-function choice(id: string, label: string, text: string, tone: Choice["tone"], effect: Choice["effect"]): Choice {
-  return { id, label, text, tone, effect };
+function choice(
+  id: string,
+  label: string,
+  subtext: string,
+  tone: Choice["tone"],
+  immediateText: string,
+  visualCue: Choice["visualCue"],
+  effect: Choice["effect"]
+): Choice {
+  return { id, label, subtext, tone, immediateText, visualCue, effect };
 }
 
-function event(seed: string, id: string, tag: string, title: string, body: string, location: string, choices: Choice[]): GameEvent {
-  return { id: `${id}-${seed}`, tag, title, body, location, choices };
+function event(id: string, tag: string, title: string, body: string, location: string, stationNote: string, choices: Choice[]): GameEvent {
+  return { id, tag, title, body, location, stationNote, choices };
+}
+
+function suspiciousPassenger(state: GameState) {
+  return state.passengers.find(function find(p) { return p.hiddenRole === "suspicious"; });
+}
+
+function childPassenger(state: GameState) {
+  return state.passengers.find(function find(p) { return p.hiddenRole === "child"; });
 }
 
 export function makeEvent(state: GameState): GameEvent {
-  const r = random(`${state.round}:${state.station}:${state.trainNo}`);
-  const variants: GameEvent[] = [];
-  variants.push(
-    event(String(state.round), "stranger", "PASSAGER", "Un homme veut monter", "Il tient une carte froissée et répète qu'il doit absolument arriver avant minuit.", "Quai 2", [
-      choice("let-in", "LE LAISSER MONTER", "Tu ouvres les portes.", "neutral", {
-        addPassenger: person(String(state.round), state.round),
-        schedule: { delay: 3, text: "Le nouvel arrivant a semé la panique dans le wagon. Quelque chose a été déplacé.", stress: 24, supplies: -12, fatal: false },
-      }),
-      choice("question", "LUI POSER DES QUESTIONS", "Tu prends trente secondes pour comprendre.", "safe", {
-        stress: 7,
-        schedule: { delay: 2, text: "Tu comprends plus tard qu'une information qu'il t'a donnée était fausse. Aucun dégât direct, mais le doute reste.", stress: 12 },
-      }),
-      choice("descend", "DESCENDRE POUR LE SUIVRE", "Tu quittes la rame avec lui. Une autre rame peut encore arriver.", "weird", {
-        switchTrain: true,
-        schedule: { delay: 2, text: "La rame que tu as quittée est restée bloquée plusieurs stations plus loin.", stress: -14, money: 8 },
-      }),
-    ]),
-  );
+  const suspicious = suspiciousPassenger(state);
+  const child = childPassenger(state);
 
-  variants.push(
-    event(String(state.round), "warning", "MESSAGE", "Quelqu'un te prévient", "Une vieille dame te glisse : « Ne restez pas dans cette rame après la prochaine station. »", "Porte arrière", [
-      choice("trust", "LA CROIRE", "Tu prépares ton changement de train.", "safe", {
-        switchTrain: true,
-        schedule: { delay: 2, text: "Le signal d'alerte de l'ancienne rame se déclenche. Tu n'y es plus.", stress: -18, money: 6 },
-      }),
-      choice("ignore", "IGNORER", "Ça ressemble à une histoire de plus.", "risky", {
-        stress: -4,
-        schedule: { delay: 2, text: "Un arrêt technique imprévu bloque le wagon. Tu perds des réserves à attendre.", supplies: -28, stress: 22 },
-      }),
-      choice("ask", "LUI DEMANDER POURQUOI", "Tu essaies d'obtenir un détail concret.", "neutral", {
-        stress: 10,
-        schedule: { delay: 3, text: "La vieille dame avait raison sur un point : le quai suivant était fermé.", stress: 8, supplies: -8 },
-      }),
-    ]),
-  );
+  if (state.round === 1 && !state.seenEvents.includes("stranger")) {
+    const adam = newPassenger(state.seed, 9, "suspicious");
+    return event(
+      "stranger",
+      "PASSAGER",
+      "Un homme veut monter",
+      "Les portes bipent déjà. Un homme court sur le quai avec un sac sombre et te fait signe. Le conducteur attend encore quelques secondes.",
+      "QUAI " + state.platform,
+      "Tout le monde semble vouloir partir vite.",
+      [
+        choice(
+          "board",
+          "LE LAISSER MONTER",
+          "Tu lui ouvres la porte.",
+          "risky",
+          "Les portes se rouvrent. L'homme monte, pose son sac contre la paroi et prend place dans la voiture 3. Le train repart.",
+          "board",
+          { addPassenger: adam, schedule: { delay: 3, chainId: "stranger-attack", text: "ADAM se lève brusquement. Le verrou d'une porte claque. Tu comprends trop tard que quelque chose n'allait pas depuis son arrivée.", health: -100, fatal: true, condition: { passengerId: adam.id, blockedFlag: "man-reported" } } }
+        ),
+        choice(
+          "check",
+          "VÉRIFIER SON BILLET",
+          "Tu lui demandes où il va avant de décider.",
+          "neutral",
+          "Il te montre son billet. La destination correspond, mais la date est légèrement passée. Malgré tout, il monte. Il garde les yeux baissés.",
+          "board",
+          { addPassenger: adam, stress: 4, addFlag: "man-questioned", schedule: { delay: 3, chainId: "stranger-attack", text: "ADAM se lève brusquement. Le verrou d'une porte claque. Tu comprends trop tard que quelque chose n'allait pas depuis son arrivée.", health: -100, fatal: true, condition: { passengerId: adam.id, blockedFlag: "man-reported" } } }
+        ),
+        choice(
+          "refuse",
+          "REFUSER",
+          "Tu gardes la porte fermée.",
+          "safe",
+          "Le signal retentit. L'homme reste sur le quai pendant que la rame s'éloigne.",
+          "none",
+          { stress: 5 }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "smoke", "INCIDENT", "Une odeur de gaz", "Une odeur métallique apparaît. Personne autour de toi ne semble réagir.", "Entre deux wagons", [
-      choice("stay", "RESTER", "Tu attends de voir si ça disparaît.", "danger", {
-        stress: 8,
-        schedule: { delay: 2, text: "La fuite que tu avais ignorée atteint le wagon. Tu suffoques.", health: -42, stress: 30 },
-      }),
-      choice("descend", "DESCENDRE", "Tu quittes la rame au prochain arrêt.", "safe", {
-        switchTrain: true,
-        schedule: { delay: 2, text: "Les agents ont évacué la rame que tu as quittée.", stress: -22 },
-      }),
-      choice("alert", "PRÉVENIR TOUT LE MONDE", "Tu déclenches l'alarme.", "neutral", {
-        stress: 20,
-        schedule: { delay: 1, text: "L'alarme a vidé une partie de tes provisions pendant l'évacuation.", supplies: -18, money: -5 },
-      }),
-    ]),
-  );
+  if (suspicious && !state.flags.includes("man-checked")) {
+    return event(
+      "ticket-control",
+      "CONTRÔLE",
+      "Le contrôleur arrive",
+      "Un contrôleur avance dans le couloir. Lorsqu'il arrive devant " + suspicious.name + ", l'homme détourne les yeux.",
+      "VOITURE 3",
+      "Le wagon vient de ralentir avant la station.",
+      [
+        choice(
+          "report",
+          "LE SIGNALER",
+          "Tu lui montres discrètement le billet.",
+          "safe",
+          "Le contrôleur compare le billet avec son terminal. Deux agents attendent à la prochaine station. " + suspicious.name + " descend avant même qu'ils lui parlent.",
+          "switch",
+          { removePassengerId: suspicious.id, addFlag: "man-reported", addFlag: "man-checked", score: 120 }
+        ),
+        choice(
+          "ignore",
+          "NE RIEN DIRE",
+          "Tu fais comme si tu n'avais rien remarqué.",
+          "risky",
+          "Le contrôleur passe sans poser de question. " + suspicious.name + " te regarde une seconde, puis range son billet.",
+          "none",
+          { addFlag: "man-checked", stress: -3 }
+        ),
+        choice(
+          "talk",
+          "LUI PARLER SEUL À SEUL",
+          "Tu lui demandes ce qu'il cache.",
+          "danger",
+          "Il te suit dans l'espace entre les voitures. Sa réponse est calme, mais son regard change quand tu prononces le mot « billet ».",
+          "warn",
+          { addFlag: "man-checked", stress: 12, schedule: { delay: 1, chainId: "stranger-pressure", text: "La situation dégénère dans le passage entre les voitures. Tu te fais violemment bousculer avant qu'il ne retourne dans son siège.", health: -38, condition: { passengerId: suspicious.id, blockedFlag: "man-reported" } } }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "package", "OBJET", "Une valise sans propriétaire", "Personne ne veut reconnaître la valise posée sous un siège. Le train redémarre déjà.", "Voiture 1", [
-      choice("open", "L'OUVRIR", "Tu veux savoir ce qu'il y a dedans.", "risky", {
-        money: 20,
-        schedule: { delay: 2, text: "Le contenu t'attire des ennuis : quelqu'un revient le réclamer.", stress: 25, health: -10 },
-      }),
-      choice("move", "LA METTRE DE CÔTÉ", "Tu éloignes la valise de la zone de passage.", "neutral", {
-        supplies: -5,
-        schedule: { delay: 1, text: "La valise n'était pas dangereuse. Elle a simplement déclenché une fouille.", stress: 12 },
-      }),
-      choice("leave", "NE RIEN FAIRE", "Tu la laisses là où elle est.", "safe", {
-        schedule: { delay: 3, text: "La valise disparaît pendant un arrêt. Personne ne t'accuse.", money: 5 },
-      }),
-    ]),
-  );
+  if (state.flags.includes("bag-open") && !state.flags.includes("bag-resolved")) {
+    return event(
+      "bag-owner",
+      "RETOUR",
+      "Le propriétaire de la valise revient",
+      "Un homme monte à la station suivante et regarde immédiatement sous les sièges. Il te demande si tu as vu une valise rigide noire.",
+      "VOITURE 2",
+      "La même valise que tout à l'heure n'est plus là.",
+      [
+        choice(
+          "admit",
+          "LUI DIRE LA VÉRITÉ",
+          "Tu lui racontes exactement ce que tu as fait.",
+          "safe",
+          "Il vérifie le contenu, souffle de soulagement et récupère sa valise. Il te laisse quelques billets avant de descendre.",
+          "none",
+          { money: 28, addFlag: "bag-resolved" }
+        ),
+        choice(
+          "lie",
+          "MENTIR",
+          "Tu dis n'avoir rien vu.",
+          "risky",
+          "Il insiste. Tu maintiens ton histoire. Il finit par abandonner, mais tu sens son regard rester sur toi jusqu'au prochain arrêt.",
+          "warn",
+          { stress: 20, addFlag: "bag-resolved", schedule: { delay: 2, chainId: "bag-report", text: "Les images des caméras finissent par montrer la valise dans ton wagon. Un contrôle te fait perdre du temps et de l'argent.", money: -32, stress: 24 } }
+        ),
+        choice(
+          "leave",
+          "PARTIR AVANT LA FIN",
+          "Tu changes de rame avant qu'il n'ait fini.",
+          "risky",
+          "Tu descends. Une autre rame arrive presque immédiatement et tu montes dedans avant qu'il ne puisse te retrouver.",
+          "switch",
+          { switchTrain: true, addFlag: "bag-resolved", stress: 4 }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "child", "PASSAGER", "Un enfant cherche sa mère", "Il te demande si tu as vu une femme avec un manteau jaune. La foule descend.", "Hall de correspondance", [
-      choice("help", "L'AIDER", "Tu descends avec lui.", "safe", {
-        switchTrain: true,
-        stress: 12,
-        schedule: { delay: 2, text: "La mère était dans une autre rame. Le petit te laisse un badge porte-bonheur.", money: 22, stress: -20 },
-      }),
-      choice("stay", "RESTER DANS LE TRAIN", "Tu lui indiques simplement la sortie.", "neutral", {
-        stress: 4,
-        schedule: { delay: 3, text: "Tu repenses à l'enfant quand le train repart. Rien n'indique ce qui lui est arrivé.", stress: 10 },
-      }),
-      choice("call", "APPELER UN AGENT", "Tu passes le relais à quelqu'un de la station.", "safe", {
-        money: -3,
-        schedule: { delay: 2, text: "L'agent a retrouvé la mère. Ta décision n'aura pas de conséquence.", stress: -6 },
-      }),
-    ]),
-  );
+  if (child && !state.flags.includes("child-resolved")) {
+    return event(
+      "child-return",
+      "RENCONTRE",
+      "Une femme cherche son enfant",
+      "Une femme arrive en courant sur le quai. Elle prononce le prénom de l'enfant que tu avais aidé et regarde chaque voiture.",
+      "QUAI " + state.platform,
+      "La rame va repartir dans quelques secondes.",
+      [
+        choice(
+          "reunite",
+          "LUI MONTRER OÙ IL EST",
+          "Tu lui fais signe depuis la porte.",
+          "safe",
+          "Elle retrouve son enfant. Il descend de ta rame et elle te remercie avant que les portes se ferment.",
+          "none",
+          { removePassengerId: child.id, money: 24, addFlag: "child-resolved" }
+        ),
+        choice(
+          "stay",
+          "ATTENDRE QUELQUES SECONDES",
+          "Tu bloques le départ juste assez longtemps.",
+          "neutral",
+          "Tu maintiens les portes ouvertes. La femme monte, prend son enfant et repart aussitôt. Le train redémarre avec un peu de retard.",
+          "none",
+          { removePassengerId: child.id, stress: -10, addFlag: "child-resolved" }
+        ),
+        choice(
+          "leave",
+          "NE PAS TE MÊLER DE ÇA",
+          "Tu laisses l'agent de quai s'en occuper.",
+          "risky",
+          "Les portes se ferment. La femme reste sur le quai et le train repart. Tu ne sauras pas si elle l'a retrouvé.",
+          "none",
+          { addFlag: "child-resolved", stress: 14 }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "power", "VILLE", "Toute la station s'éteint", "L'écran des quais devient noir. Une seconde plus tard, les lumières de la ville aussi.", "Station centrale", [
-      choice("wait", "ATTENDRE", "Tu laisses le système redémarrer.", "neutral", {
-        supplies: -14,
-        stress: 15,
-        schedule: { delay: 3, text: "La panne a coupé la ventilation de ton wagon plus longtemps que prévu.", health: -20, stress: 16 },
-      }),
-      choice("transfer", "CHANGER DE TRAIN", "Une rame de secours vient d'arriver.", "safe", {
-        switchTrain: true,
-        money: -8,
-        schedule: { delay: 2, text: "Le train de secours repart normalement.", stress: -14 },
-      }),
-      choice("follow", "SUIVRE LES GENS", "Tu quittes le quai principal avec la foule.", "weird", {
-        stress: 6,
-        schedule: { delay: 2, text: "Le chemin de secours était fermé. Tu as raté une correspondance.", supplies: -18, money: -10 },
-      }),
-    ]),
-  );
+  if (state.round === 3 && !state.seenEvents.includes("bag")) {
+    const bag = newPassenger(state.seed, 14);
+    bag.name = "PROPRIÉTAIRE";
+    bag.note = "cherche quelque chose dans le train";
+    return event(
+      "bag",
+      "OBJET",
+      "Une valise sous le siège",
+      "Une valise noire est coincée sous un siège. Elle n'appartient à personne autour de toi. Le train vient de repartir.",
+      "VOITURE 2",
+      "Personne ne semble remarquer que tu l'as trouvée.",
+      [
+        choice(
+          "open",
+          "L'OUVRIR",
+          "Tu veux savoir ce qu'il y a dedans.",
+          "risky",
+          "Tu ouvres la valise. Elle contient des documents et une grosse enveloppe d'argent. Tu refermes aussitôt, mais quelqu'un va probablement venir la chercher.",
+          "warn",
+          { money: 70, addFlag: "bag-open", score: 100 }
+        ),
+        choice(
+          "driver",
+          "LA REMETTRE AU CONDUCTEUR",
+          "Tu ne touches à rien d'autre.",
+          "safe",
+          "Tu transportes la valise jusqu'à la cabine et la confies au conducteur. Il te remercie et la garde hors du wagon.",
+          "none",
+          { money: 12, addFlag: "bag-resolved" }
+        ),
+        choice(
+          "ignore",
+          "LA LAISSER LÀ",
+          "Tu ne veux rien savoir.",
+          "neutral",
+          "Tu repousses la valise sous le siège. Le train continue. Quelqu'un d'autre finira peut-être par la voir.",
+          "none",
+          { stress: 2, addFlag: "bag-resolved" }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "police", "CONTRÔLE", "Des agents montent", "Ils demandent à chaque passager de montrer quelque chose prouvant son identité.", "Voiture 2", [
-      choice("cooperate", "COOPÉRER", "Tu restes calme et aides à organiser le contrôle.", "safe", {
-        stress: -8,
-        schedule: { delay: 2, text: "Le contrôle se termine. Tu récupères un peu de confiance.", money: 12, stress: -10 },
-      }),
-      choice("hide", "TE CACHER", "Tu ne veux aucune question.", "risky", {
-        stress: 22,
-        schedule: { delay: 2, text: "Les agents te retrouvent au mauvais moment. Tu dois abandonner quelques provisions.", supplies: -22, money: -15 },
-      }),
-      choice("descend", "DESCENDRE", "Tu prends la sortie avant qu'ils arrivent.", "neutral", {
-        switchTrain: true,
-        schedule: { delay: 1, text: "La rame suivante évite le contrôle.", stress: 4 },
-      }),
-    ]),
-  );
+  if (state.round === 4 && !state.seenEvents.includes("fire")) {
+    return event(
+      "fire",
+      "VILLE",
+      "Une rue prend feu",
+      "À travers les vitres, tu vois une colonne de fumée noire monter derrière les immeubles. La station suivante est partiellement évacuée.",
+      "LUMEN — SORTIE SUD",
+      "Le conducteur annonce un retard indéterminé.",
+      [
+        choice(
+          "stay",
+          "RESTER DANS LA RAME",
+          "Tu attends que la voie soit rouverte.",
+          "risky",
+          "Les portes restent fermées. La fumée devient plus dense autour de la station tandis que la rame attend.",
+          "warn",
+          { supplies: -8, schedule: { delay: 1, chainId: "station-smoke", text: "La ventilation a aspiré une partie de la fumée dans la rame. Tu tousses pendant plusieurs minutes.", health: -24, stress: 16 } }
+        ),
+        choice(
+          "descend",
+          "DESCENDRE",
+          "Tu quittes la rame pour une correspondance.",
+          "safe",
+          "Tu descends avec les autres. Quatre minutes plus tard, une autre rame arrive sur une voie parallèle. Tu montes et le voyage continue.",
+          "switch",
+          { switchTrain: true, addFlag: "fire-avoided" }
+        ),
+        choice(
+          "help",
+          "AIDER SUR LE QUAI",
+          "Tu sors pour guider les gens vers la rue.",
+          "neutral",
+          "Tu aides plusieurs personnes à sortir de la zone avant de remonter dans une rame de secours.",
+          "switch",
+          { switchTrain: true, health: -8, supplies: -10, money: 18, addFlag: "fire-helped" }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "rain", "QUAI", "Le quai est inondé", "L'eau monte autour des chaussures. Le prochain train est annoncé dans trois minutes.", "Sous-sol", [
-      choice("jump", "TRAVERSER", "Tu avances malgré l'eau.", "danger", {
-        health: -8,
-        stress: 16,
-        schedule: { delay: 2, text: "Tes vêtements humides te rendent malade pendant le trajet.", health: -22, supplies: -6 },
-      }),
-      choice("back", "REMONTER", "Tu rejoins la rue.", "safe", {
-        switchTrain: true,
-        money: -6,
-        schedule: { delay: 2, text: "Le détour t'a coûté mais tu évites l'inondation.", stress: -12 },
-      }),
-      choice("wait", "ATTENDRE", "Tu restes sous l'auvent.", "neutral", {
-        supplies: -10,
-        schedule: { delay: 1, text: "Le niveau baisse. Tu reprends le trajet avec un peu de retard.", stress: 10 },
-      }),
-    ]),
-  );
+  if (state.round === 5 && !state.seenEvents.includes("power")) {
+    return event(
+      "power",
+      "PANNE",
+      "Les lumières s'éteignent",
+      "Tout devient noir pendant trois secondes. Quand les lumières de secours reviennent, le wagon est silencieux.",
+      "CENTRE DE LA RAME",
+      "Le système de ventilation redémarre lentement.",
+      [
+        choice(
+          "wait",
+          "ATTENDRE",
+          "Tu ne bouges pas.",
+          "neutral",
+          "Tu restes assis. Les lumières principales reviennent et le train repart normalement.",
+          "none",
+          { supplies: -6, stress: 7 }
+        ),
+        choice(
+          "transfer",
+          "CHANGER DE TRAIN",
+          "Tu profites de l'arrêt pour changer de rame.",
+          "safe",
+          "Tu descends avant le redémarrage complet. La rame voisine est déjà alimentée et part dans ta direction.",
+          "switch",
+          { switchTrain: true, money: -6, addFlag: "power-avoided" }
+        ),
+        choice(
+          "force",
+          "OUVRIR LA PORTE",
+          "Tu veux sortir par tes propres moyens.",
+          "danger",
+          "La porte s'ouvre difficilement. Tu te retrouves sur le quai technique, puis tu remontes avant le départ. Le système a enregistré l'incident.",
+          "impact",
+          { health: -10, stress: 16, schedule: { delay: 2, chainId: "door-incident", text: "Une sécurité automatique se déclenche à cause de la porte forcée. La rame est immobilisée et ton intégrité chute pendant l'incident.", health: -48, stress: 20 } }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "quiet", "NORMAL", "Une station étrangement calme", "Aucun bruit. Aucun écran. Juste un quai vide et une porte ouverte.", "Terminus secondaire", [
-      choice("stay", "RESTER", "Tu gardes ta place.", "safe", {
-        stress: -8,
-        schedule: { delay: 2, text: "Le calme n'était qu'un retard d'affichage.", supplies: 8 },
-      }),
-      choice("explore", "DESCENDRE ET REGARDER", "Tu vas voir ce qu'il y a derrière la porte.", "weird", {
-        switchTrain: true,
-        stress: 8,
-        schedule: { delay: 2, text: "Tu trouves un raccourci et remontes dans une autre rame.", money: 18, stress: -4 },
-      }),
-      choice("leave", "NE PAS TOUCHER", "Tu refuses de t'en mêler.", "neutral", {
-        schedule: { delay: 3, text: "Une porte secondaire s'est finalement refermée. Tu as évité quelque chose que tu ne comprends pas.", stress: 5 },
-      }),
-    ]),
-  );
+  if (state.round === 6 && !state.seenEvents.includes("child")) {
+    const childPassengerData = newPassenger(state.seed, 22, "child");
+    childPassengerData.name = "LEA";
+    childPassengerData.age = 9;
+    childPassengerData.note = "sac à dos jaune · cherche sa mère";
+    return event(
+      "child",
+      "PASSAGER",
+      "Une enfant est seule",
+      "Une petite fille monte dans la mauvaise rame et te demande si tu sais où est sa mère. Les portes vont se fermer.",
+      "QUAI " + state.platform,
+      "Les annonces sont couvertes par le bruit de la station.",
+      [
+        choice(
+          "help",
+          "L'AIDER",
+          "Tu la fais monter et tu gardes un œil sur elle.",
+          "safe",
+          "Tu lui fais une place. Elle s'assoit près de la porte avec son sac jaune et te décrit sa mère.",
+          "board",
+          { addPassenger: childPassengerData, addFlag: "child-helped", stress: 8 }
+        ),
+        choice(
+          "agent",
+          "APPELER UN AGENT",
+          "Tu la confies immédiatement à la station.",
+          "safe",
+          "Tu la remets à un agent sur le quai. Le train repart sans elle.",
+          "none",
+          { stress: 2 }
+        ),
+        choice(
+          "ignore",
+          "RESTER À TA PLACE",
+          "Tu la laisses chercher quelqu'un d'autre.",
+          "neutral",
+          "Tu ne fais rien. Elle descend avant le départ pour attendre un adulte.",
+          "none",
+          { stress: 10 }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "medic", "PASSAGER", "Quelqu'un s'effondre", "Une personne près de la porte tombe. Les autres regardent sans bouger.", "Voiture 3", [
-      choice("help", "L'AIDER", "Tu utilises une partie de tes réserves pour l'assister.", "safe", {
-        supplies: -18,
-        stress: 9,
-        schedule: { delay: 2, text: "La personne se rétablit. Elle te laisse un peu d'argent avant de descendre.", money: 28, stress: -12 },
-      }),
-      choice("call", "APPELER LES SECOURS", "Tu gardes tes distances.", "safe", {
-        money: -4,
-        schedule: { delay: 1, text: "Les secours prennent le relais. Le train repart après une longue pause.", supplies: -10, stress: -4 },
-      }),
-      choice("ignore", "NE RIEN FAIRE", "Tu laisses quelqu'un d'autre décider.", "danger", {
-        stress: 18,
-        schedule: { delay: 3, text: "La situation empire parce que personne n'a agi.", health: -28, stress: 22 },
-      }),
-    ]),
-  );
+  if (state.round === 7 && !state.seenEvents.includes("signal")) {
+    return event(
+      "signal",
+      "VOIE",
+      "Le signal passe au rouge",
+      "Le train ralentit jusqu'à l'arrêt complet. Une voix dans la radio répète : « Ne repartez pas avant confirmation. »",
+      "ENTRE " + state.station + " ET LE SUIVANT",
+      "Le chauffeur attend une autorisation.",
+      [
+        choice(
+          "wait",
+          "ATTENDRE",
+          "Tu fais confiance au signal.",
+          "safe",
+          "Tu attends. Après quelques minutes, l'autorisation arrive et le train repart doucement.",
+          "none",
+          { supplies: -5, stress: 3 }
+        ),
+        choice(
+          "transfer",
+          "DESCENDRE ET CHANGER",
+          "Tu rejoins une autre rame qui vient d'arriver.",
+          "neutral",
+          "Tu quittes le train à l'arrêt et montes dans une autre rame. Elle suit une boucle parallèle.",
+          "switch",
+          { switchTrain: true, money: -4, addFlag: "signal-detour" }
+        ),
+        choice(
+          "push",
+          "FAIRE REPARTIR",
+          "Tu suis les autres qui appuient sur le système de commande.",
+          "danger",
+          "Le système finit par repartir, mais le train donne un choc violent. Tout le monde comprend que ce n'était pas une bonne idée.",
+          "impact",
+          { health: -15, stress: 19, schedule: { delay: 2, chainId: "red-signal", text: "Le choc de la dernière fois a abîmé un système. La rame freine brutalement et tu es projeté contre une paroi.", health: -55, fatal: false } }
+        )
+      ]
+    );
+  }
 
-  variants.push(
-    event(String(state.round), "signal", "VOIE", "Le signal devient rouge", "Le conducteur n'accélère plus. La radio répète le même mot : « Attendre. »", "Entre deux stations", [
-      choice("stay", "ATTENDRE", "Tu ne prends aucun risque.", "safe", {
-        supplies: -8,
-        schedule: { delay: 2, text: "La voie est libérée. Le retard est le seul prix à payer.", stress: 5 },
-      }),
-      choice("transfer", "DESCENDRE ET CHANGER", "Une porte latérale vient de s'ouvrir.", "weird", {
-        switchTrain: true,
-        schedule: { delay: 3, text: "Le détour t'éloigne mais évite une fermeture complète de ligne.", money: -12, stress: -10 },
-      }),
-      choice("force", "FORCER LA SUITE", "Tu pousses pour que le train reparte.", "danger", {
-        stress: 20,
-        schedule: { delay: 2, text: "La voie suivante était occupée. Le choc abîme la rame.", health: -35, fatal: true },
-      }),
-    ]),
-  );
+  const generic: GameEvent[] = [
+    event(
+      "station-closed",
+      "STATION",
+      "Une station ferme soudainement",
+      "Les barrières descendent avant ton arrivée. Les quais sont encore éclairés, mais personne ne peut y entrer.",
+      "ACCÈS PRINCIPAL",
+      "Une rame attend sur la voie d'à côté.",
+      [
+        choice("switch", "PRENDRE LA RAME D'À CÔTÉ", "Tu profites de l'occasion.", "safe", "Tu changes de train avant la fermeture complète. La nouvelle rame part quelques secondes après.", "switch", { switchTrain: true, money: -5 }),
+        choice("wait", "ATTENDRE", "Tu restes à bord.", "neutral", "Tu attends que la station rouvre. Le retard coûte du temps, mais rien d'autre ne se passe.", "none", { stress: 6 }),
+        choice("leave", "DESCENDRE QUAND MÊME", "Tu suis un agent vers une sortie secondaire.", "risky", "Tu quittes le train et rejoins la rame suivante par un passage de service.", "switch", { switchTrain: true, health: -4, stress: 5 })
+      ]
+    ),
+    event(
+      "water",
+      "PASSAGER",
+      "Quelqu'un demande de l'eau",
+      "Une passagère se sent mal. Elle demande simplement une bouteille et promet de te rembourser.",
+      "VOITURE 1",
+      "Les autres passagers regardent ailleurs.",
+      [
+        choice("give", "LUI DONNER DE L'EAU", "Tu partages une de tes réserves.", "safe", "Tu lui donnes une bouteille. Sa respiration ralentit et elle te remercie.", "none", { supplies: -10, stress: -4, schedule: { delay: 2, chainId: "water-thanks", text: "Avant de descendre, la passagère te laisse une enveloppe avec de quoi remplacer ta bouteille.", money: 20 } }),
+        choice("sell", "LUI VENDRE", "Tu demandes un peu d'argent.", "risky", "Elle accepte et boit lentement. Le wagon redevient calme.", "none", { supplies: -8, money: 12, stress: 3 }),
+        choice("refuse", "REFUSER", "Tu gardes tes réserves.", "neutral", "Tu refuses. Elle se tourne vers une autre personne.", "none", { stress: 5 })
+      ]
+    ),
+    event(
+      "worker",
+      "VILLE",
+      "Un agent te fait signe",
+      "Sur le quai, un agent de maintenance te demande si tu peux déposer un petit boîtier à la prochaine station.",
+      "QUAI " + state.platform,
+      "Il n'a pas le temps de monter.",
+      [
+        choice("carry", "LE PRENDRE", "Tu acceptes de l'aider.", "safe", "Tu prends le boîtier et le gardes avec toi. Il doit être livré au prochain arrêt.", "none", { addFlag: "carrying-box", schedule: { delay: 2, chainId: "worker-reward", text: "L'agent te retrouve à une station suivante. Le boîtier était important et il te remercie pour l'avoir apporté.", money: 32, supplies: -4, addFlag: "box-delivered" } }),
+        choice("decline", "REFUSER", "Tu n'es pas sûr de vouloir transporter ça.", "neutral", "L'agent hausse les épaules et repart vers son local.", "none", { stress: 2 }),
+        choice("ask", "DEMANDER POURQUOI", "Tu veux comprendre avant d'accepter.", "neutral", "Il t'explique que le boîtier sert à réparer un signal. Tu refuses finalement de le prendre.", "none", { stress: -2 })
+      ]
+    ),
+    event(
+      "quiet-car",
+      "VOITURE 4",
+      "La dernière voiture est vide",
+      "Pour la première fois de la nuit, personne n'est dans la voiture 4. Une seule lumière clignote au-dessus d'un siège.",
+      "VOITURE 4",
+      "Le train roule normalement.",
+      [
+        choice("move", "Y ALLER", "Tu changes simplement de voiture.", "risky", "Tu t'installes dans la dernière voiture. Le voyant arrête de clignoter quelques secondes plus tard.", "none", { stress: 8 }),
+        choice("stay", "RESTER ICI", "Tu ne changes pas de place.", "safe", "Tu restes avec les autres. La lumière de la dernière voiture s'éteint naturellement.", "none", { stress: -4 }),
+        choice("switch", "CHANGER DE TRAIN", "Tu préfères ne pas tenter le hasard.", "neutral", "Tu descends et prends la rame suivante. Elle est plus remplie mais parfaitement normale.", "switch", { switchTrain: true, money: -4 })
+      ]
+    ),
+    event(
+      "last-stretch",
+      "DERNIERS ARRÊTS",
+      "MAISON n'est plus très loin",
+      "Le haut-parleur grésille. Tu reconnais enfin la voix de l'annonceur qui indique la zone de ton domicile.",
+      "LIGNE PRINCIPALE",
+      "Le prochain trajet sera le dernier.",
+      [
+        choice("stay", "RESTER À BORD", "Tu ne prends plus de risque.", "safe", "Tu restes assis et regardes les lumières défiler. La ville se calme autour du train.", "none", { supplies: -5, stress: -12 }),
+        choice("switch", "PRENDRE LA CORRESPONDANCE", "Une autre rame part dans quelques secondes.", "neutral", "Tu changes de rame pour gagner du temps. Les portes se ferment derrière toi.", "switch", { switchTrain: true, stress: 4 }),
+        choice("help", "AIDER LES PASSAGERS À SORTIR", "Tu prends quelques secondes pour les aider.", "safe", "Tu aides plusieurs personnes à descendre avant de remonter. Tu arrives un peu après, mais tu gardes ton calme.", "none", { stress: -8, money: 10 })
+      ]
+    )
+  ];
 
-  variants.push(
-    event(String(state.round), "final", "TERMINUS", "La maison approche", "L'annonce audio grésille : « Derniers arrêts avant le terminus MAISON. »", "Ligne principale", [
-      choice("stay", "RESTER", "Tu gardes ton calme jusqu'au bout.", "safe", {
-        stress: -15,
-        supplies: -6,
-        schedule: { delay: 1, text: "Les portes de MAISON s'ouvrent. Tu es enfin arrivé.", stress: -20 },
-      }),
-      choice("descend", "DESCENDRE AVANT LE TERMINUS", "Une dernière occasion de changer de rame.", "weird", {
-        switchTrain: true,
-        schedule: { delay: 2, text: "Tu rates ton premier terminus mais une correspondance te ramène sur la bonne ligne.", money: -5, stress: 10 },
-      }),
-      choice("help", "AIDER UN PASSAGER À DESCENDRE", "Tu prends le temps malgré l'annonce.", "neutral", {
-        stress: -6,
-        schedule: { delay: 1, text: "Le passager te remercie. Tu atteins le terminus avec quelques minutes de retard.", money: 15 },
-      }),
-    ]),
-  );
+  const candidates = generic.filter(function unseen(item) {
+    return !state.seenEvents.includes(item.id);
+  });
+  if (candidates.length > 0) {
+    const index = hash(state.seed + ":generic:" + state.round) % candidates.length;
+    return candidates[index] ?? generic[0];
+  }
 
-  let index = Math.floor(r() * variants.length);
-  if (state.round === state.totalRounds - 1) index = variants.length - 1;
-  if (state.round % 6 === 0) index = 2;
-  const selected = variants[index] ?? variants[0];
-  return selected;
-}
-
-export function displayPending(state: GameState) {
-  return [...state.pending].sort((a, b) => a.dueRound - b.dueRound).slice(0, 3);
+  return generic[hash(state.seed + ":fallback:" + state.round) % generic.length] ?? generic[0];
 }
