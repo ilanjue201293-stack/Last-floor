@@ -384,3 +384,7 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
 }
+
+.enemy.boss { width:54px; height:54px; }
+.enemy.boss span { border:2px solid #ff7777; background:radial-gradient(circle,#251316 0 28%,#11171b 29% 100%); box-shadow:0 0 30px rgba(255,98,98,.25), inset 0 0 15px rgba(255,98,98,.12); transform:rotate(45deg); }
+.enemy.boss span::after { content:""; position:absolute; inset:12px; border:1px solid rgba(255,98,98,.5); }
