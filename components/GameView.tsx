@@ -124,7 +124,7 @@ export default function GameView(props: Props) {
     setMemory(makeSequence(floor.seed, Math.min(8, 3 + Math.floor(floor.difficulty / 2))));
     setMemoryIndex(0);
     setMemoryVisible(floor.type === "MEMORY");
-    setTargets(floor.type === "CHALLENGE" ? Array.from({ length: 6 }, () => ({ x: 12 + random() * 76, y: 12 + random() * 74 })) : []);
+    setTargets(floor.type === "CHALLENGE" ? Array.from({ length: 6 }, () => ({ x: 12 + random() * 76, y: 12 + random() * 60 })) : []);
     const initialEnemies = floor.type === "COMBAT" ? (floor.isBoss ? [{ id: 0, x: 50, y: 30, kind: "boss" as const }] : Array.from({ length: Math.min(10, Math.ceil((2 + floor.difficulty) * enemyMultiplier)) }, (_, id) => ({
       id, x: 14 + random() * 72, y: 16 + random() * 56, kind: id % 4 === 0 ? "tank" as const : id % 3 === 0 ? "turret" as const : "hunter" as const,
     }))) : [];
