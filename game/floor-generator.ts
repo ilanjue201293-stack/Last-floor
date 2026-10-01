@@ -40,7 +40,7 @@ export function generateFloor(floor: number, runSeed: number, daily = false): Fl
     floor,
     zone,
     type: room,
-    title: isBoss ? BOSS_NAMES[floor]! : `${typeLabel} // ${zone.name}`,
+    title: isBoss ? BOSS_NAMES[floor]! : `${variants[variant] ?? typeLabel} // ${zone.name}`,
     objective: isBoss
       ? `Defeat ${BOSS_NAMES[floor]}.`
       : room === "COMBAT"
