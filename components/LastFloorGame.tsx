@@ -271,7 +271,7 @@ export default function LastFloorGame() {
 
   if (intro) return <main className="intro-screen"><div className="intro-lines"><span>YEAR 20XX</span><span>Nobody knows who built it.</span><span>Nobody knows what is at the top.</span><span>There are 100 floors.</span><strong>You are going up.</strong></div><button className="big-action primary" onClick={endIntro}>ENTER THE TOWER <b>↗</b></button></main>;
 
-  if (screen === "run" && run && floor) return <div className="game-root"><GameView floor={floor} lives={run.lives} maxLives={maxLives} score={run.score} combo={run.combo} modifierMultiplier={rewardMultiplier} speedMultiplier={speedMultiplier} abilityIds={abilities} energyLevel={save.upgrades.ENERGY} shieldLevel={save.upgrades.SHIELD} sound={save.settings.sound} volume={save.settings.volume} onFloorClear={finishFloor} onLoseLife={loseLife} reducedMotion={save.settings.reducedMotion} /></div>;
+  if (screen === "run" && run && floor) return <div className="game-root"><GameView floor={floor} lives={run.lives} maxLives={maxLives} score={run.score} combo={run.combo} modifierMultiplier={rewardMultiplier} speedMultiplier={speedMultiplier} enemyMultiplier={run.modifier?.enemyMultiplier ?? 1} abilityIds={abilities} energyLevel={save.upgrades.ENERGY} shieldLevel={save.upgrades.SHIELD} sound={save.settings.sound} volume={save.settings.volume} onFloorClear={finishFloor} onLoseLife={loseLife} reducedMotion={save.settings.reducedMotion} /></div>;
 
   if (screen === "modifier" && run) return <div className="app-shell"><ModifierScreen onChoose={chooseModifier} /></div>;
 
