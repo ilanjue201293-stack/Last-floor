@@ -32,6 +32,8 @@ export type FloorConfig = {
   seed: number;
   isBoss: boolean;
   bossName?: string;
+  variant: number;
+  variantName: string;
 };
 
 export type UpgradeId = "HEALTH" | "SPEED" | "SHIELD" | "LUCK" | "ENERGY";
