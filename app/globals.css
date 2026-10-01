@@ -388,3 +388,18 @@ body::before {
 .enemy.boss { width:54px; height:54px; }
 .enemy.boss span { border:2px solid #ff7777; background:radial-gradient(circle,#251316 0 28%,#11171b 29% 100%); box-shadow:0 0 30px rgba(255,98,98,.25), inset 0 0 15px rgba(255,98,98,.12); transform:rotate(45deg); }
 .enemy.boss span::after { content:""; position:absolute; inset:12px; border:1px solid rgba(255,98,98,.5); }
+
+.unknown-console { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,84%);z-index:7;text-align:center; }
+.unknown-question { display:block;font-family:var(--serif);font-size:72px;color:#d4dcdf;line-height:.8;text-shadow:0 0 28px rgba(255,255,255,.08); }
+.unknown-console strong { display:block;font-size:11px;letter-spacing:.2em;margin-top:15px; }
+.unknown-console small { display:block;color:#657177;font-size:7px;letter-spacing:.12em;margin-top:7px; }
+.unknown-doors { display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:24px; }
+.unknown-doors button { min-height:150px;border:1px solid rgba(219,232,238,.14);background:rgba(255,255,255,.02);display:grid;place-items:center;align-content:center;gap:10px; }
+.unknown-doors button:hover,.unknown-doors button.chosen { border-color:var(--room-accent);background:color-mix(in srgb,var(--room-accent),transparent 92%); }
+.unknown-doors span { font-size:8px;letter-spacing:.18em; }
+.unknown-doors b { color:var(--room-accent);font-size:22px;font-weight:400; }
+@media (max-width:680px) {
+  .unknown-console { width:88%; }
+  .unknown-doors { gap:6px; }
+  .unknown-doors button { min-height:120px; }
+}
