@@ -1,12 +1,3 @@
-export function hashString(value: string): number {
-  let hash = 1779033703 ^ value.length;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = Math.imul(hash ^ value.charCodeAt(i), 3432918353);
-    hash = hash << 13 | hash >>> 19;
-  }
-  return () => 0 as never;
-}
-
 export function hashSeed(value: string | number): number {
   let x = typeof value === "number" ? value | 0 : 0;
   const text = String(value);
