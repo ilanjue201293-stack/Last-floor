@@ -34,6 +34,7 @@ const ACCENT: Record<RoomType, string> = {
   ESCAPE: "#7ea8ff",
   CHALLENGE: "#e8cf71",
   MEMORY: "#b8a2ff",
+  UNKNOWN: "#c5cbd0",
 };
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
@@ -67,6 +68,7 @@ export default function GameView(props: Props) {
   const [memoryIndex, setMemoryIndex] = useState(0);
   const [puzzleIndex, setPuzzleIndex] = useState(0);
   const [bossHp, setBossHp] = useState(floor.isBoss ? 12 : 0);
+  const [mysteryChoice, setMysteryChoice] = useState<number | null>(null);
 
   useEffect(() => { playerRef.current = player; }, [player]);
 
@@ -109,6 +111,7 @@ export default function GameView(props: Props) {
     setHits(0);
     setPuzzleIndex(0);
     setBossHp(floor.isBoss ? 12 : 0);
+    setMysteryChoice(null);
     setMemory(makeSequence(floor.seed, Math.min(8, 3 + Math.floor(floor.difficulty / 2))));
     setMemoryIndex(0);
     setMemoryVisible(floor.type === "MEMORY");
@@ -224,6 +227,10 @@ export default function GameView(props: Props) {
     if (floor.type === "PUZZLE") {
       return;
     }
+    if (floor.type === "UNKNOWN") {
+      flash("PICK A DOOR");
+      return;
+    }
     if (floor.type === "COMBAT") {
       const target = enemies.filter((enemy) => dist(enemy, player) < 18).sort((a,b) => dist(a,player)-dist(b,player))[0];
       if (!target) return flash("OUT OF RANGE");
@@ -276,6 +283,7 @@ export default function GameView(props: Props) {
           {floor.type === "ESCAPE" && <><div className="laser laser-a" /><div className="laser laser-b" /><div className="laser laser-c" /><div className="escape-exit"><span>EXIT</span><b>↗</b></div></>}
           {floor.type === "CHALLENGE" && targets.map((target,index)=><button className="target" key={index} style={{left:target.x+"%",top:target.y+"%"}} onClick={()=>{setPlayer(target);playerRef.current=target;action();}}><span>{String(index+1).padStart(2,"0")}</span></button>)}
           {floor.type === "PUZZLE" && <div className="puzzle-console"><div className="puzzle-screen"><span>SIGNAL LOCK</span><strong>{puzzleIndex}/4</strong><small>PRESS IN SEQUENCE</small></div><div className="puzzle-buttons">{[0,1,2,3].map((value)=><button key={value} className={puzzleIndex>value?"pressed":""} onClick={()=>{if(value!==puzzleIndex){flash("WRONG CIRCUIT");onLoseLife("PUZZLE");setPuzzleIndex(0);return;}const next=value+1;setPuzzleIndex(next);if(next===4)finish({perfect:lives===maxLives,puzzle:true});}}>{["Ⅰ","Ⅱ","Ⅲ","Ⅳ"][value]}</button>)}</div></div>}
+          {floor.type === "UNKNOWN" && <div className="unknown-console"><span className="unknown-question">?</span><strong>CHOOSE ONE</strong><small>The tower will remember.</small><div className="unknown-doors">{[0,1,2].map((door) => <button key={door} className={mysteryChoice === door ? "chosen" : ""} onClick={() => { const safe = floor.seed % 3; const bonus = Math.floor(floor.seed / 7) % 3; setMysteryChoice(door); if (door === safe || door === bonus) finish({ perfect: lives === maxLives }); else { flash("THE WRONG DOOR"); onLoseLife("TRAP"); window.setTimeout(() => setMysteryChoice(null), 420); } }}><span>DOOR {door + 1}</span><b>↗</b></button>)}</div></div>}
           {floor.type === "MEMORY" && <div className="memory-console"><div className={memoryVisible?"memory-sequence visible":"memory-sequence"}>{memory.map((symbol,index)=><span key={index}>{symbol}</span>)}</div><div className="memory-buttons">{["△","□","○","◇","✦","◈"].map((symbol)=><button key={symbol} disabled={memoryVisible} onClick={()=>{if(symbol!==memory[memoryIndex]){flash("SIGNAL LOST");onLoseLife("MEMORY");setMemoryIndex(0);return;}const next=memoryIndex+1;setMemoryIndex(next);if(next>=memory.length)finish({perfect:lives===maxLives,puzzle:true});}}>{symbol}</button>)}</div></div>}
           <div className={shield ? "player shielded" : "player"} style={{left:player.x+"%",top:player.y+"%"}}><i /><span /></div>
           {message && <div className="arena-flash">{message}</div>}
