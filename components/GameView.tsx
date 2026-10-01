@@ -51,6 +51,8 @@ export default function GameView(props: Props) {
   const { floor, lives, maxLives, score, combo, modifierMultiplier, speedMultiplier, abilityIds, energyLevel, shieldLevel, sound, volume, onFloorClear, onLoseLife, reducedMotion } = props;
   const [player, setPlayer] = useState<Point>({ x: 50, y: 72 });
   const playerRef = useRef<Point>(player);
+  const enemiesRef = useRef<Enemy[]>([]);
+  const touchInputRef = useRef<Point>({ x: 0, y: 0 });
   const input = useRef<Point>({ x: 0, y: 0 });
   const [touchInput, setTouchInput] = useState<Point>({ x: 0, y: 0 });
   const [time, setTime] = useState(floor.timeLimit);
@@ -73,6 +75,7 @@ export default function GameView(props: Props) {
   const [mysteryChoice, setMysteryChoice] = useState<number | null>(null);
 
   useEffect(() => { playerRef.current = player; }, [player]);
+  useEffect(() => { touchInputRef.current = touchInput; }, [touchInput]);
 
   const flash = useCallback((text: string) => {
     setMessage(text);
@@ -121,9 +124,11 @@ export default function GameView(props: Props) {
     setMemoryIndex(0);
     setMemoryVisible(floor.type === "MEMORY");
     setTargets(floor.type === "CHALLENGE" ? Array.from({ length: 6 }, () => ({ x: 12 + random() * 76, y: 12 + random() * 74 })) : []);
-    setEnemies(floor.type === "COMBAT" ? (floor.isBoss ? [{ id: 0, x: 50, y: 30, kind: "boss" as const }] : Array.from({ length: Math.min(8, 2 + floor.difficulty) }, (_, id) => ({
+    const initialEnemies = floor.type === "COMBAT" ? (floor.isBoss ? [{ id: 0, x: 50, y: 30, kind: "boss" as const }] : Array.from({ length: Math.min(8, 2 + floor.difficulty) }, (_, id) => ({
       id, x: 14 + random() * 72, y: 16 + random() * 56, kind: id % 4 === 0 ? "tank" as const : id % 3 === 0 ? "turret" as const : "hunter" as const,
-    }))) : []);
+    }))) : [];
+    enemiesRef.current = initialEnemies;
+    setEnemies(initialEnemies);
   }, [abilityIds, floor, shieldLevel]);
 
   useEffect(() => {
@@ -182,26 +187,27 @@ export default function GameView(props: Props) {
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
       last = now;
       if (!won) {
-        const source = Math.hypot(input.current.x, input.current.y) > 0 ? input.current : touchInput;
+        const source = Math.hypot(input.current.x, input.current.y) > 0 ? input.current : touchInputRef.current;
         if (source.x || source.y) {
           const movement = 18 * speedMultiplier * (dash ? 2.5 : 1) * (slow ? 0.5 : 1);
-          setPlayer((current) => {
-            const next = { x: clamp(current.x + source.x * movement * dt, 5, 95), y: clamp(current.y + source.y * movement * dt, 8, 90) };
-            playerRef.current = next;
-            return next;
-          });
+          const current = playerRef.current;
+          const nextPlayer = { x: clamp(current.x + source.x * movement * dt, 5, 95), y: clamp(current.y + source.y * movement * dt, 8, 90) };
+          playerRef.current = nextPlayer;
+          setPlayer(nextPlayer);
         }
         if (floor.type === "COMBAT") {
           const currentPlayer = playerRef.current;
-          setEnemies((current) => current.map((enemy) => {
+          const nextEnemies = enemiesRef.current.map((enemy) => {
             if (enemy.kind === "turret") return enemy;
             const dx = currentPlayer.x - enemy.x;
             const dy = currentPlayer.y - enemy.y;
             const len = Math.max(1, Math.hypot(dx, dy));
             const enemySpeed = enemy.kind === "boss" ? 1.7 : enemy.kind === "tank" ? 2.4 : 4.8;
             return { ...enemy, x: clamp(enemy.x + dx / len * enemySpeed * dt, 7, 93), y: clamp(enemy.y + dy / len * enemySpeed * dt, 10, 88) };
-          }));
-          if (enemies.some((enemy) => dist(enemy, currentPlayer) < 5.5)) hit("CONTACT");
+          });
+          enemiesRef.current = nextEnemies;
+          setEnemies(nextEnemies);
+          if (nextEnemies.some((enemy) => dist(enemy, currentPlayer) < 5.5)) hit("CONTACT");
         }
         if (floor.type === "ESCAPE" && Math.random() < dt * 0.13) hit("LASER");
       }
@@ -209,7 +215,7 @@ export default function GameView(props: Props) {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [dash, enemies, floor.type, hit, slow, speedMultiplier, touchInput, won]);
+  }, [dash, floor.type, hit, slow, speedMultiplier, won]);
 
   const action = useCallback(() => {
     if (won) return;
