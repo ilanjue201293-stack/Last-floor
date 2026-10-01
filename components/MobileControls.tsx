@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { AbilityId } from "@/game/types";
 import { ABILITIES } from "@/game/data";
 
@@ -12,46 +14,48 @@ type Props = {
   cooldowns: Record<AbilityId, number>;
 };
 
-export default function MobileControls({
-  direction,
-  onDirection,
-  onAction,
-  onAbility,
-  abilities,
-  cooldowns,
-}: Props) {
-  const pad = (x: number, y: number) => onDirection(x, y);
+export default function MobileControls({ direction, onDirection, onAction, onAbility, abilities, cooldowns }: Props) {
+  const padRef = useRef<HTMLDivElement | null>(null);
+
+  const updateStick = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pad = padRef.current;
+    if (!pad) return;
+    const rect = pad.getBoundingClientRect();
+    const radius = rect.width * 0.36;
+    const dx = event.clientX - (rect.left + rect.width / 2);
+    const dy = event.clientY - (rect.top + rect.height / 2);
+    const length = Math.hypot(dx, dy) || 1;
+    const scale = Math.min(1, radius / length);
+    onDirection((dx * scale) / radius, (dy * scale) / radius);
+  };
+
+  const releaseStick = () => onDirection(0, 0);
 
   return (
     <div className="mobile-controls" aria-label="Touch controls">
       <div
+        ref={padRef}
         className="joystick"
-        onPointerLeave={() => pad(0, 0)}
-        onPointerUp={() => pad(0, 0)}
-        onPointerCancel={() => pad(0, 0)}
+        onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); updateStick(event); }}
+        onPointerMove={updateStick}
+        onPointerUp={releaseStick}
+        onPointerCancel={releaseStick}
+        onPointerLeave={(event) => { if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) return; releaseStick(); }}
       >
-        <button onPointerDown={() => pad(-1, 0)} aria-label="Move left">‹</button>
-        <button onPointerDown={() => pad(1, 0)} aria-label="Move right">›</button>
-        <button onPointerDown={() => pad(0, -1)} aria-label="Move up">↑</button>
-        <button onPointerDown={() => pad(0, 1)} aria-label="Move down">↓</button>
-        <span className="joystick-dot" style={{ transform: `translate(${direction.x * 8}px, ${direction.y * 8}px)` }} />
+        <span className="joystick-dot" style={{ transform: \`translate(\${direction.x * 29}px, \${direction.y * 29}px)\` }} />
+        <span className="joystick-cross horizontal" />
+        <span className="joystick-cross vertical" />
       </div>
       <div className="mobile-actions">
-        <button className="touch-action" onPointerDown={onAction}>ACT</button>
         <div className="touch-abilities">
           {abilities.map((id) => (
-            <button
-              key={id}
-              className="touch-ability"
-              onPointerDown={() => onAbility(id)}
-              disabled={cooldowns[id] > 0}
-              title={ABILITIES[id].name}
-            >
+            <button key={id} className="touch-ability" onPointerDown={() => onAbility(id)} disabled={cooldowns[id] > 0} aria-label={ABILITIES[id].name}>
               <span>{ABILITIES[id].symbol}</span>
-              <small>{cooldowns[id] > 0 ? cooldowns[id].toFixed(1) : ABILITIES[id].name}</small>
+              <small>{cooldowns[id] > 0 ? cooldowns[id].toFixed(1) : id}</small>
             </button>
           ))}
         </div>
+        <button className="touch-action" onPointerDown={onAction} aria-label="Action">ACT</button>
       </div>
     </div>
   );
