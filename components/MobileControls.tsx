@@ -42,7 +42,7 @@ export default function MobileControls({ direction, onDirection, onAction, onAbi
         onPointerCancel={releaseStick}
         onPointerLeave={(event) => { if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) return; releaseStick(); }}
       >
-        <span className="joystick-dot" style={{ transform: \`translate(\${direction.x * 29}px, \${direction.y * 29}px)\` }} />
+        <span className="joystick-dot" style={{ transform: `translate(${direction.x * 29}px, ${direction.y * 29}px)` }} />
         <span className="joystick-cross horizontal" />
         <span className="joystick-cross vertical" />
       </div>
