@@ -16,6 +16,8 @@ export function generateFloor(floor: number, runSeed: number, daily = false): Fl
       ? seededPick(LATE_ROOMS, random)
       : seededPick(floor <= 10 ? EARLY_ROOMS : LATE_ROOMS, random);
   const difficulty = Math.min(10, 1 + Math.floor((floor - 1) / 10));
+  const variants = VARIANTS[room];
+  const variant = Math.floor(random() * variants.length);
   const typeLabel = ROOM_INFO[room].label;
   const baseTime = Math.max(8, 27 - difficulty * 1.6);
 
@@ -47,5 +49,7 @@ export function generateFloor(floor: number, runSeed: number, daily = false): Fl
     seed,
     isBoss,
     bossName: BOSS_NAMES[floor],
+    variant,
+    variantName: variants[variant] ?? ROOM_INFO[room].label,
   };
 }
