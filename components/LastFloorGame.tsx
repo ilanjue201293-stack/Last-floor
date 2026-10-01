@@ -42,6 +42,7 @@ export default function LastFloorGame() {
   const [intro, setIntro] = useState(false);
   const [toast, setToast] = useState("");
   const [abilities, setAbilities] = useState<AbilityId[]>(DEFAULT_ABILITIES);
+  const [endRun, setEndRun] = useState<RunSnapshot | null>(null);
 
   const maxLives = 3 + save.upgrades.HEALTH;
   const floor = run ? generateFloor(run.floor, run.seed, run.daily) : null;
@@ -78,6 +79,7 @@ export default function LastFloorGame() {
 
   const startRun = useCallback((daily: boolean) => {
     const next = makeRun(daily);
+    setEndRun(null);
     setRun(next);
     persist({ ...save, activeRun: next });
     setScreen("run");
@@ -126,6 +128,7 @@ export default function LastFloorGame() {
       notify("-" + reason + " // " + nextLives + " LIFE LEFT");
       return;
     }
+    setEndRun(next);
     bankRun(next, true);
     setScreen("gameover");
     audio.play("gameover", save.settings.sound, save.settings.volume);
@@ -176,6 +179,7 @@ export default function LastFloorGame() {
     if (clearedFloor >= 100) {
       const victoryRun = { ...next, floor: 100 };
       setRun(victoryRun);
+      setEndRun(victoryRun);
       persist({ ...save, stats: nextStats, activeRun: null, coins: save.coins + victoryRun.runCoins, shards: save.shards + victoryRun.runShards, keys: save.keys + victoryRun.runKeys });
       setScreen("gameover");
       notify("THE LAST FLOOR // ASCENSION COMPLETE");
@@ -272,7 +276,8 @@ export default function LastFloorGame() {
 
   if (screen === "modifier" && run) return <div className="app-shell"><ModifierScreen onChoose={chooseModifier} /></div>;
 
-  if (screen === "gameover" && run) return <div className="app-shell"><GameOverScreen run={run} victory={run.floor >= 100 && run.floorsCleared >= 99} onRetry={() => startRun(run.daily)} onCheckpoint={run.checkpoint > 0 && !run.checkpointUsed ? restoreCheckpoint : undefined} onMenu={() => { setRun(null); persist({ ...save, activeRun: null }); navigate("menu"); }} /></div>;
+  const finalRun = run ?? endRun;
+  if (screen === "gameover" && finalRun) return <div className="app-shell"><GameOverScreen run={finalRun} victory={finalRun.floor >= 100 && finalRun.floorsCleared >= 99} onRetry={() => startRun(finalRun.daily)} onCheckpoint={finalRun.checkpoint > 0 && !finalRun.checkpointUsed ? restoreCheckpoint : undefined} onMenu={() => { setRun(null); setEndRun(null); persist({ ...save, activeRun: null }); navigate("menu"); }} /></div>;
 
   return <div className="app-shell">
     <nav className="top-nav"><button className="brand-mark" onClick={() => navigate("menu")}><span>LF</span><b>LAST FLOOR</b></button><div className="resource-bar"><span>◉ {save.coins.toLocaleString("fr-FR")}</span><span>◆ {save.shards}</span><span>⌑ {save.keys}</span></div><div className="nav-actions"><button onClick={() => navigate("tower")}>TOWER</button><button onClick={() => navigate("profile")}>PROFILE</button><button onClick={() => navigate("shop")}>ARMORY</button></div></nav>
