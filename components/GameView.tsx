@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ABILITIES, ROOM_INFO } from "@/game/data";
 import { mulberry32 } from "@/game/rng";
+import { audio } from "@/game/audio";
 import type { AbilityId, FloorConfig, RoomType } from "@/game/types";
 import MobileControls from "./MobileControls";
 
@@ -257,6 +258,7 @@ export default function GameView(props: Props) {
   const useAbility = (id: AbilityId) => {
     if (won || cooldowns[id] > 0) return;
     const cooldown = ABILITIES[id].cooldown * Math.max(0.65, 1 - energyLevel * 0.05);
+    audio.play(id === "DASH" ? "dash" : id === "SHIELD" ? "checkpoint" : id === "TIME" ? "danger" : id === "PULSE" ? "combo" : "click", sound, volume);
     setCooldowns((current) => ({ ...current, [id]: cooldown }));
     if (id === "DASH") { setDash(true); flash("DASH"); window.setTimeout(() => setDash(false), 520); }
     if (id === "SHIELD") { setShield(true); flash("SHIELD ONLINE"); window.setTimeout(() => setShield(false), 3000); }
