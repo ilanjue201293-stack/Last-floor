@@ -354,7 +354,7 @@ export function makeEvent(state: GameState): GameEvent {
           "safe",
           "Le contrôleur compare le billet avec son terminal. Deux agents attendent à la prochaine station. " + suspicious.name + " descend avant même qu'ils lui parlent.",
           "switch",
-          { removePassengerId: suspicious.id, addFlag: "man-reported", addFlag: "man-checked", score: 120 }
+          { removePassengerId: suspicious.id, addFlag: "man-reported" }
         ),
         choice(
           "ignore",
@@ -734,6 +734,7 @@ export function makeEvent(state: GameState): GameEvent {
   ];
 
   const candidates = generic.filter(function unseen(item) {
+    if (item.id === "last-stretch" && state.round < state.maxRounds - 3) return false;
     return !state.seenEvents.includes(item.id);
   });
   if (candidates.length > 0) {
