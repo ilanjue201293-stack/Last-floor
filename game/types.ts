@@ -1,4 +1,4 @@
-export type RoomType = "PUZZLE" | "COMBAT" | "ESCAPE" | "CHALLENGE" | "MEMORY";
+export type RoomType = "PUZZLE" | "COMBAT" | "ESCAPE" | "CHALLENGE" | "MEMORY" | "UNKNOWN";
 export type AbilityId = "DASH" | "SHIELD" | "TIME" | "PULSE" | "SCAN";
 export type CosmeticId = "ROOKIE" | "SHADOW" | "NEON" | "GLITCH" | "GOLDEN" | "VOID";
 
