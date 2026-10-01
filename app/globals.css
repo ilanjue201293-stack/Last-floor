@@ -548,3 +548,24 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .room-decor i,.arena-frame::after { animation:none !important; }
 }
+
+.joystick { touch-action:none; user-select:none; -webkit-user-select:none; }
+.joystick-dot,.joystick-cross { pointer-events:none; }
+.mobile-controls button { touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+.touch-action:active,.touch-ability:active { transform:scale(.94); }
+.touch-ability { transition:transform .08s ease, border-color .18s ease, background .18s ease; }
+@media (max-width:390px) {
+  .mobile-controls { padding-left:7px; padding-right:7px; }
+  .joystick { width:104px; height:104px; }
+  .touch-action { width:64px; height:64px; }
+  .touch-ability { width:52px; height:52px; }
+  .touch-ability small { display:none; }
+}
+@media (max-width:680px) {
+  .hero-panel { min-height:58dvh; }
+  .menu-buttons { flex-direction:column; align-items:stretch; }
+  .menu-buttons .big-action { min-height:54px; }
+  .loadout-option { min-height:54px; }
+  .page-shell { padding-bottom:calc(80px + env(safe-area-inset-bottom)); }
+  .big-action,.text-button,.menu-nav-grid button,.upgrade-card,.cosmetic-card,.achievement-card { -webkit-user-select:none; user-select:none; }
+}
